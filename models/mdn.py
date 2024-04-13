@@ -174,3 +174,43 @@ class MDN(nn.Module):
         quantiles = [self.icdf(x, torch.tensor(percentile / 100.0), l, u, max_iter, tolerance) for percentile in percentiles]
 
         return torch.stack(quantiles, dim=1)[0]
+
+
+
+
+def gamma_mdn_loss(out: list[torch.Tensor], y: torch.Tensor) -> torch.Tensor:
+    """
+    Calculate the negative log-likelihood loss for the mixture density network.
+    Args:
+        out: the mixture weights, shape parameters and rate parameters (all shape: (n, num_components))
+        y: the observed values (shape: (n, 1))
+    Returns:
+        the negative log-likelihood loss (shape: (1,))
+    """
+    weights, alphas, betas = out
+    dists = MixtureSameFamily(
+        Categorical(weights),
+        torch.distributions.Gamma(alphas, betas),
+    )
+    log_prob = dists.log_prob(y.squeeze())
+    assert log_prob.ndim == 1
+    return -log_prob.mean()
+
+
+def gaussian_mdn_loss(out: list[torch.Tensor], y: torch.Tensor) -> torch.Tensor:
+    """
+    Calculate the negative log-likelihood loss for the mixture density network.
+    Args:
+        out: the mixture weights, shape parameters and rate parameters (all shape: (n, num_components))
+        y: the observed values (shape: (n, 1))
+    Returns:
+        the negative log-likelihood loss (shape: (1,))
+    """
+    weights, mus, sigmas = out
+    dists = MixtureSameFamily(
+        Categorical(weights),
+        torch.distributions.Normal(mus, sigmas),
+    )
+    log_prob = dists.log_prob(y.squeeze())
+    assert log_prob.ndim == 1
+    return -log_prob.mean()

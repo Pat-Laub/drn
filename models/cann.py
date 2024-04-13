@@ -28,8 +28,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.integrate import quad
 from scipy.stats import norm
 
-from ..glm_df.glm_dispersion import gamma_convert_parameters
-from ..glm_df.glm_class import GLM
+from .glm import GLM, gamma_convert_parameters
 
 class CANN(nn.Module):
     """

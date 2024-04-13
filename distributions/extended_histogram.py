@@ -28,7 +28,7 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.integrate import quad
 from scipy.stats import norm
 
-from .histogram_class import Histogram
+from .histogram import Histogram
 
 class ExtendedHistogram(Distribution):
     """

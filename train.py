@@ -30,8 +30,11 @@ from scipy.stats import norm
 
 import copy
 
-
-from .types import Criterion
+# Define Criterion type hint
+Criterion = Union[
+    Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
+    Callable[[List[torch.Tensor], torch.Tensor], torch.Tensor]
+]
 
 def train(
     model: nn.Module,
