@@ -10,11 +10,7 @@ setup(
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     install_requires=[
-        'pandas',
         'numpy',
-        'seaborn',
-        'scikit-learn',
-        'statsmodels',
         'torch',
         'tqdm',
     ],
