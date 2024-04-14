@@ -229,33 +229,25 @@ def drn_jbce_loss(pred, y,
 
 def uniform_cutpoints(c_0, c_K, p, y):
     num_cutpoints = int(np.ceil(p * len(y)))
-    cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
-
-    return(cutpoints)
+    return list(np.linspace(c_0, c_K, num_cutpoints))
     
-def merge_cutpoints(cutpoints, y, min_obs):
+def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list[float]:
     # Ensure cutpoints are sorted and unique to start with
-    cutpoints = np.unique(cutpoints)
-    cutpoints.sort()
-    
-    if len(cutpoints) == 0:
-        return []
+    cutpoints = sorted(list(np.unique(cutpoints)))
+    assert len(cutpoints) >= 2
 
-
-    # Initialize
     new_cutpoints = [cutpoints[0]]  # Start with the first cutpoint
-    count_since_last_added = 0      # Initialize count of observations since last added cutpoint
+    left = 0
     
-    for i in range(1, len(cutpoints)):
-        # Count observations between this and the previous cutpoint
-        observations = np.sum((y >= cutpoints[i - 1]) & (y < cutpoints[i]))
-        count_since_last_added += observations
+    for right in range(1, len(cutpoints) - 1):
+        num_in_region = np.sum((y >= cutpoints[left]) & (y < cutpoints[right]))
+        num_after_region = np.sum((y >= cutpoints[right]) & (y < cutpoints[-1]))
 
-        # If the count reaches or exceeds 5, or we are at the last cutpoint, add the cutpoint to new_cutpoints
-        if count_since_last_added >= min_obs or i == len(cutpoints) - 1:
-            if cutpoints[i] < np.max(y) or i == len(cutpoints) - 1:  # Ensure the last cutpoint is always included
-                new_cutpoints.append(cutpoints[i])
-                count_since_last_added = 0  # Reset count after adding a cutpoint
+        if num_in_region >= min_obs and num_after_region >= min_obs:
+            new_cutpoints.append(cutpoints[right])
+            left = right
+
+    new_cutpoints.append(cutpoints[-1])  # End with the last cutpoint
 
     return new_cutpoints
 
