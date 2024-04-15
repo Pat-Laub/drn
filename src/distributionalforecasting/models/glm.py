@@ -4,6 +4,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+import statsmodels.api as sm
+from statsmodels.genmod.families import Gaussian, Gamma
+
 
 class GLM(nn.Module):
     """
@@ -29,6 +32,47 @@ class GLM(nn.Module):
             self.sigma: Optional[float] = None  # Standard deviation for Gaussian distribution
         else:
             raise ValueError(f"Unsupported model type: {self.distribution}")
+
+    @staticmethod
+    def from_statsmodels(X, y, distribution):
+        """
+        Fit a GLM using statsmodels and initialize a PyTorch GLM model with the fitted parameters.
+        
+        Args:
+            X: The feature matrix.
+            y: The target vector.
+            distribution: The type of distribution ('gamma' or 'gaussian').
+
+        Returns:
+            An instance of the PyTorch GLM class with parameters initialized to those estimated by statsmodels.
+        """
+        p = X.shape[1]
+        # Choose the correct family based on the distribution
+        if distribution == 'gamma':
+            family = Gamma(link=sm.families.links.Log())
+        elif distribution == 'gaussian':
+            family = Gaussian()
+        else:
+            raise ValueError(f"Unsupported model type: {distribution}")
+        
+        # Fit the GLM model
+        model = sm.GLM(y, sm.add_constant(X), family=family)
+        results = model.fit()
+
+        # Create a new PyTorch GLM instance
+        torch_glm = GLM(p, distribution)
+        torch_glm.linear.weight.data = torch.tensor(results.params[1:], dtype=torch.float32).unsqueeze(0)
+        torch_glm.linear.bias.data = torch.tensor([results.params[0]], dtype=torch.float32)
+
+        # Set additional parameters if needed
+        if distribution == 'gamma':
+            # Assume dispersion is the scale parameter from statsmodels
+            torch_glm.dispersion = results.scale.item()
+        elif distribution == 'gaussian':
+            # Standard deviation is the square root of the scale parameter
+            torch_glm.sigma = (results.scale ** 0.5).item()
+
+        return torch_glm
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.distribution == 'gamma':
@@ -200,10 +244,11 @@ def gamma_estimate_dispersion(mu: torch.Tensor, y: torch.Tensor, p: int) -> floa
     Args:
         mu: the predicted means for the gamma distributions (shape: (n, 1))
         y: the observed values (shape: (n, 1))
-        p: the number of features
+        p: the number of features (not including the intercept)
     """
     n = mu.shape[0]
-    return (torch.sum((y - mu) ** 2 / mu**2) / (n - p)).item()
+    dof = n - (p + 1)
+    return (torch.sum((y - mu) ** 2 / mu**2) / dof).item()
 
 
 def gamma_convert_parameters(

@@ -29,6 +29,23 @@ def test_glm():
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
 
+def test_glm_from_statsmodels():
+    print("\n\nTraining GLM\n")
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+
+    # Convert X_train and Y_train to numpy
+    x_train = X_train.numpy()
+    y_train = Y_train.numpy()
+
+    torch.manual_seed(1)
+    glm = df.GLM.from_statsmodels(x_train, y_train, distribution='gamma')
+
+    our_dispersion = df.gamma_estimate_dispersion(
+        glm.forward(X_train), Y_train, X_train.shape[1]
+    )
+    
+    assert np.isclose(our_dispersion, glm.dispersion)
+
 def test_cann():
     print("\n\nTraining CANN\n")
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
