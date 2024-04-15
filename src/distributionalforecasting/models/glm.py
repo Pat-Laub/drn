@@ -56,7 +56,7 @@ class GLM(nn.Module):
             
         return glm
 
-    def distributions(self, x: torch.Tensor):
+    def distributions(self, x: torch.Tensor) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
         """
@@ -67,7 +67,7 @@ class GLM(nn.Module):
         else:
             raise ValueError(f"Unsupported model type: {self.distribution}")
 
-    def _gamma_distributions(self, x: torch.Tensor):
+    def _gamma_distributions(self, x: torch.Tensor) -> torch.distributions.Gamma:
         if self.dispersion is None:
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
         means = self.forward(x)
@@ -76,7 +76,7 @@ class GLM(nn.Module):
         dists = torch.distributions.Gamma(alphas, betas)
         return dists
 
-    def _gaussian_distributions(self, x: torch.Tensor):
+    def _gaussian_distributions(self, x: torch.Tensor) -> torch.distributions.Normal:
         if self.sigma is None:
             raise RuntimeError("Standard deviation has not been estimated yet.")
         mu = self.forward(x)
