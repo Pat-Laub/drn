@@ -173,7 +173,7 @@ def drn_nll_loss(pred, y,
         
     if mean_alpha > 0:
         means_glm = baseline_dists.mean
-        means_drn = dists.mean()
+        means_drn = dists.mean
         mean_change = (means_drn - means_glm) 
         losses += torch.mean(mean_change ** 2) * mean_alpha
 
@@ -210,7 +210,7 @@ def drn_jbce_loss(pred, y,
         
     if mean_alpha > 0:
         means_glm = baseline_dists.mean
-        means_drn = dists.mean()
+        means_drn = dists.mean
         mean_change = (means_drn - means_glm) 
         losses += torch.mean(mean_change ** 2) * mean_alpha
 

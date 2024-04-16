@@ -117,7 +117,8 @@ class ExtendedHistogram(Distribution):
         lower_cdf = self.baseline.cdf(self.histogram.cutpoints[0]).unsqueeze(0)
         out = lower_cdf + hist_at_cutpoints
         return out
-    
+
+    @property    
     def mean(self) -> torch.Tensor:
         """
         Calculate the mean of the distribution.

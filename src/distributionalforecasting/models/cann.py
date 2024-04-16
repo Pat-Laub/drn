@@ -59,7 +59,7 @@ class CANN(nn.Module):
         assert out.shape == torch.Size([x.shape[0]])
         return out
 
-    def distributions(self, x: torch.Tensor):
+    def distributions(self, x: torch.Tensor) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
         """

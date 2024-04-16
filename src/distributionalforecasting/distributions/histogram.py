@@ -268,6 +268,7 @@ class Histogram(Distribution):
             dim=1,
         ).T
 
+    @property
     def mean(self) -> torch.Tensor:
         """
         Calculate the mean of the distribution.
