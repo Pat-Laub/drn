@@ -10,6 +10,10 @@ def test_glm():
 
     torch.manual_seed(1)
     glm = df.GLM(X_train.shape[1], distribution='gamma')
+
+    # Either we call 'train' to move to same device as 'X_train', or do it manually
+    glm = glm.to(X_train.device)
+    
     glm.dispersion = df.gamma_estimate_dispersion(
         glm.forward(X_train), Y_train, X_train.shape[1]
     )

@@ -34,7 +34,7 @@ class GLM(nn.Module):
             raise ValueError(f"Unsupported model type: {self.distribution}")
 
     @staticmethod
-    def from_statsmodels(X, y, distribution):
+    def from_statsmodels(X: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor], distribution: str):
         """
         Fit a GLM using statsmodels and initialize a PyTorch GLM model with the fitted parameters.
         
@@ -47,6 +47,14 @@ class GLM(nn.Module):
             An instance of the PyTorch GLM class with parameters initialized to those estimated by statsmodels.
         """
         p = X.shape[1]
+
+        if isinstance(X, torch.Tensor):
+            device = X.device
+            X = X.detach().cpu().numpy()
+            y = y.detach().cpu().numpy()
+        else:
+            device = None
+
         # Choose the correct family based on the distribution
         if distribution == 'gamma':
             family = Gamma(link=sm.families.links.Log())
@@ -71,6 +79,9 @@ class GLM(nn.Module):
         elif distribution == 'gaussian':
             # Standard deviation is the square root of the scale parameter
             torch_glm.sigma = (results.scale ** 0.5).item()
+
+        if device:
+            torch_glm = torch_glm.to(device)
 
         return torch_glm
 

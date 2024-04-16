@@ -1,5 +1,6 @@
 import os
 
+# os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
@@ -8,6 +9,16 @@ import torch
 from synthetic_dataset import generate_synthetic_data
 
 import distributionalforecasting as df
+
+def check_crps(model, X_train, Y_train, grid_size=3000):
+    grid = torch.linspace(0, Y_train.max().item() * 1.1, grid_size).unsqueeze(-1)
+    grid = grid.to(X_train.device)
+    dists = model.distributions(X_train)
+    cdfs = dists.cdf(grid)
+    grid = grid.squeeze()
+    crps = df.crps(Y_train, grid, cdfs)
+    assert crps.shape == Y_train.shape
+    assert crps.mean() > 0
 
 
 def test_glm():
@@ -29,17 +40,25 @@ def test_glm():
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
 
+    check_crps(glm, X_train, Y_train)
+
+
 def test_glm_from_statsmodels():
     print("\n\nTraining GLM\n")
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
 
-    # Convert X_train and Y_train to numpy
-    x_train = X_train.numpy()
-    y_train = Y_train.numpy()
+    # Construct GLM given training data in torch tensors
+    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution='gamma')
 
-    torch.manual_seed(1)
-    glm = df.GLM.from_statsmodels(x_train, y_train, distribution='gamma')
+    our_dispersion = df.gamma_estimate_dispersion(
+        glm.forward(X_train), Y_train, X_train.shape[1]
+    )
+    
+    assert np.isclose(our_dispersion, glm.dispersion)
 
+    # Construct GLM given training data in numpy arrays
+    glm = df.GLM.from_statsmodels(X_train.detach().cpu().numpy(), Y_train.detach().cpu().numpy(), distribution='gamma')
+    glm = glm.to(X_train.device) # since 'from_statsmodels' didn't know this information
     our_dispersion = df.gamma_estimate_dispersion(
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
@@ -71,6 +90,8 @@ def test_cann():
 
     cann.dispersion = df.gamma_estimate_dispersion(cann.forward(X_train), Y_train, cann.p)
 
+    check_crps(cann, X_train, Y_train)
+
 def test_mdn():
     print("\n\nTraining MDN\n")
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
@@ -84,6 +105,9 @@ def test_mdn():
         val_dataset,
         epochs=2,
     )
+
+    check_crps(mdn, X_train, Y_train)
+
 
 def setup_cutpoints(Y_train):
     max_y = torch.max(Y_train).item()
@@ -111,6 +135,9 @@ def test_ddr():
         val_dataset,
         epochs=2
     )
+
+    check_crps(ddr, X_train, Y_train)
+
 
 def test_drn():
     print("\n\nTraining DRN\n")
@@ -142,3 +169,5 @@ def test_drn():
         val_dataset,
         epochs=2,
     )
+
+    check_crps(drn, X_train, Y_train)

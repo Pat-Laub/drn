@@ -233,8 +233,8 @@ class Histogram(Distribution):
             next_bin_idx = last_bin_idx + 1
             
             # Set cdfs for the lower and upper bounds
-            last_cdfs = torch.zeros(size=(1, value.shape[1])) if y < self.cutpoints[1] else cumulative_cdf[last_bin_idx-1, :]
-            next_cdfs = torch.ones(size=(1, value.shape[1])) if y >= self.cutpoints[-2] else cumulative_cdf[next_bin_idx-1, :]
+            last_cdfs = torch.zeros(size=(1, value.shape[1]), device=value.device) if y < self.cutpoints[1] else cumulative_cdf[last_bin_idx-1, :]
+            next_cdfs = torch.ones(size=(1, value.shape[1]), device=value.device) if y >= self.cutpoints[-2] else cumulative_cdf[next_bin_idx-1, :]
 
 
             # Compute cdf_values
