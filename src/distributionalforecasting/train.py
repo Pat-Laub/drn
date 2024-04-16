@@ -1,9 +1,16 @@
 import copy
 from typing import Callable, List, Union
 
+import pandas as pd
+
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
+
 
 # Define Criterion type hint
 Criterion = Union[
@@ -24,7 +31,7 @@ def train(
     batch_size=None,
     optimizer=torch.optim.Adam,
     print_details=True,
-    gradient_clipping=True,
+    gradient_clipping=False,
 ) -> None:
     """
     A generic training function given a model and a criterion & optimizer.
@@ -113,4 +120,64 @@ def train(
         # Load the best model found during training
         model.load_state_dict(best_model)
        
+def split_and_preprocess(features, target, num_features, cat_features, seed = 42, num_standard = True):
+    # Before preprocessing split
+    x_train_raw, x_test_raw, y_train, y_test = train_test_split(
+            features, target, random_state=seed, train_size=0.8, shuffle=True
+    )
+
+    x_train_raw, x_val_raw, y_train, y_val = train_test_split(
+            x_train_raw, y_train, random_state=seed, train_size=0.75, shuffle=True
+    )
+
+    # Determine the full set of categories for each feature
+    all_categories = {feature: set() for feature in cat_features}
+    for feature in cat_features:
+        all_categories[feature].update(features[feature].unique())
+
+    # Convert each categorical feature to a categorical type with all possible categories
+    for feature in cat_features:
+        x_train_raw[feature] = pd.Categorical(x_train_raw[feature], categories=all_categories[feature])
+        x_val_raw[feature] = pd.Categorical(x_val_raw[feature], categories=all_categories[feature])
+        x_test_raw[feature] = pd.Categorical(x_test_raw[feature], categories=all_categories[feature])
+        features[feature] = pd.Categorical(features[feature], categories=all_categories[feature])
+
+    # One-hot Encoding
+    features_one_hot = pd.get_dummies(features, columns=cat_features)
+    features_one_hot = features_one_hot.astype(float)
+        
+
+    x_train, x_test, y_train, y_test = train_test_split(
+            features_one_hot, target, random_state=seed, train_size=0.8, shuffle=True   
+     )
+
+    x_train, x_val, y_train, y_val = train_test_split(
+            x_train, y_train, random_state=seed, train_size=0.75, shuffle=True
+    )
+
+    if num_standard:
+        # Standarise the numeric features.
+        ct = ColumnTransformer(
+                [("standardize", StandardScaler(), num_features)],
+                remainder="passthrough",
+                verbose_feature_names_out=False,
+        )
+            
+
+        x_train = ct.fit_transform(x_train)
+        x_val = ct.transform(x_val)
+        x_test = ct.transform(x_test)
+    else:
+        ct = None
+
+       
+    x_train = pd.DataFrame(x_train, columns = features_one_hot.columns)
+    x_val = pd.DataFrame(x_val, columns = features_one_hot.columns)
+    x_test = pd.DataFrame(x_test, columns = features_one_hot.columns)
+
+    return(x_train, x_val, x_test, y_train, y_val, y_test,\
+             x_train_raw, x_val_raw, x_test_raw,\
+                  num_features, cat_features,
+                      all_categories, ct)
+
 
