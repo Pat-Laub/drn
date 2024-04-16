@@ -27,4 +27,4 @@ classifiers=[
 ]
 
 [project.optional-dependencies]
-dev = ["black", "isort", "mypy", "pandas", "pytest"]
+dev = ["black", "ipykernel", "isort", "jupytext", "mypy", "pandas", "pytest"]
