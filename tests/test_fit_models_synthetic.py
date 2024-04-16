@@ -5,6 +5,7 @@ os.environ["OMP_NUM_THREADS"] = "1"
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 import numpy as np
+import pandas as pd
 import torch
 from synthetic_dataset import generate_synthetic_data
 
@@ -64,6 +65,12 @@ def test_glm_from_statsmodels():
     )
     
     assert np.isclose(our_dispersion, glm.dispersion)
+
+    # Check we avoid this 'iloc' warning when training on pandas data types
+    X_df = pd.DataFrame(X_train.detach().cpu().numpy(), columns=[f"X_{i}" for i in range(X_train.shape[1])])
+    y_ser = pd.Series(Y_train.detach().cpu().numpy(), name="Y")
+    glm = df.GLM.from_statsmodels(X_df, y_ser, distribution='gaussian')
+
 
 def test_cann():
     print("\n\nTraining CANN\n")

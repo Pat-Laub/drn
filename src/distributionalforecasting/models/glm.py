@@ -66,11 +66,14 @@ class GLM(nn.Module):
         # Fit the GLM model
         model = sm.GLM(y, sm.add_constant(X), family=family)
         results = model.fit()
+        betas = results.params
+        if not isinstance(results.params, np.ndarray):
+            betas = np.asarray(betas)
 
         # Create a new PyTorch GLM instance
         torch_glm = GLM(p, distribution)
-        torch_glm.linear.weight.data = torch.tensor(results.params[1:], dtype=torch.float32).unsqueeze(0)
-        torch_glm.linear.bias.data = torch.tensor([results.params[0]], dtype=torch.float32)
+        torch_glm.linear.weight.data = torch.tensor(betas[1:], dtype=torch.float32).unsqueeze(0)
+        torch_glm.linear.bias.data = torch.tensor([betas[0]], dtype=torch.float32)
 
         # Set additional parameters if needed
         if distribution == 'gamma':
