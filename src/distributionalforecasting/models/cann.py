@@ -37,11 +37,11 @@ class CANN(nn.Module):
         else:
             raise ValueError(f"Unsupported GLM type: {self.distribution}")
 
-        layers = [nn.Linear(self.p, hidden_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+        layers = [nn.Linear(self.p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.ReLU())
-            layers.append(nn.Dropout(dropout_rate))  # Add dropout after each ReLU activation
+            layers.append(nn.LeakyReLU())
+            layers.append(nn.Dropout(dropout_rate))  # Add dropout after each LeakyReLU activation
 
         layers.append(nn.Linear(hidden_size, 1))
         self.nn_output_layer = nn.Sequential(*layers)

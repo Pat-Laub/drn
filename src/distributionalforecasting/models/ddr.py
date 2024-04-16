@@ -19,10 +19,10 @@ class DDR(nn.Module):
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         self.p = p
 
-        layers = [nn.Linear(self.p, hidden_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+        layers = [nn.Linear(self.p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.ReLU())
+            layers.append(nn.LeakyReLU())
             layers.append(nn.Dropout(dropout_rate)) 
 
         # Use nn.Sequential to chain the layers together

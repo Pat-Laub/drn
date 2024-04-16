@@ -28,9 +28,9 @@ class MDN(nn.Module):
         self.num_components = num_components
         self.distribution = distribution
         
-        layers = [nn.Linear(p, hidden_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+        layers = [nn.Linear(p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
-            layers += [nn.Linear(hidden_size, hidden_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+            layers += [nn.Linear(hidden_size, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         self.hidden_layers = nn.Sequential(*layers)
         
         # Output layers for mixture parameters

@@ -23,10 +23,10 @@ class DRN(nn.Module):
         self.num_hidden_layers = num_hidden_layers
 
 
-        layers = [nn.Linear(num_features, hidden_size), nn.ReLU(), nn.Dropout(dropout_rate)]
+        layers = [nn.Linear(num_features, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.ReLU())
+            layers.append(nn.LeakyReLU())
             layers.append(nn.Dropout(dropout_rate)) 
             
         self.hidden_layers = nn.Sequential(*layers)
