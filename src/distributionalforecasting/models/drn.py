@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 from ..distributions.extended_histogram import ExtendedHistogram
-
+from .ddr import nll_loss
 
 class DRN(nn.Module):
     def __init__(self, num_features, cutpoints, glm, num_hidden_layers=2, hidden_size=75, dropout_rate = 0.2,
@@ -76,44 +76,40 @@ class DRN(nn.Module):
             if DEBUG:
                 assert glm_prob_masses.shape == (x.shape[0], num_regions)
 
-        clipped_log_adjustments = torch.clamp(self.log_adjustments(x), min=-75, max=75)  
-        adjustments = torch.exp(clipped_log_adjustments)
-
-        # adjustments = torch.exp(self.log_adjustments(x))
-        # adjustments = adjustments.clamp(max=1e10, min=1e-10)
-
-        # Multiplying by the adjustment factors
-        addb_non_norm_prob_masses = (glm_prob_masses + 1e-10) * (adjustments)
+        clipped_log_adjustments = self.log_adjustments(x)
+        log_drn_non_norm_prob_masses = torch.log(glm_prob_masses) + clipped_log_adjustments
+        clipped_log_drn_non_norm_prob_masses = torch.clip(log_drn_non_norm_prob_masses, min = -75, max = 75)
+        drn_non_norm_prob_masses = torch.exp(clipped_log_drn_non_norm_prob_masses)
 
         if DEBUG:
-            assert addb_non_norm_prob_masses.shape == (x.shape[0], num_regions)
+            assert drn_non_norm_prob_masses.shape == (x.shape[0], num_regions)
         
         # Standardising the probability masses
-        sum_probs = torch.sum(addb_non_norm_prob_masses, axis=1, keepdim=True)
-        addb_prob_masses = addb_non_norm_prob_masses / sum_probs
+        sum_probs = torch.sum(drn_non_norm_prob_masses, axis=1, keepdim=True)
+        drn_prob_masses = drn_non_norm_prob_masses / sum_probs
 
         if DEBUG:
-            assert addb_prob_masses.shape == (x.shape[0], num_regions)
+            assert drn_prob_masses.shape == (x.shape[0], num_regions)
 
         if DEBUG:
             assert torch.allclose(
-                torch.sum(addb_prob_masses, axis=1),
+                torch.sum(drn_prob_masses, axis=1),
                 torch.ones(x.shape[0], device=x.device),
             )
-            #old = torch.min(addb_prob_masses/torch.diff(self.cutpoints))
-            if torch.min(addb_prob_masses/torch.diff(self.cutpoints)) == 0:
-                addb_prob_masses += 1e-25
-                sum_probs = torch.sum(addb_prob_masses, axis=1, keepdim=True)
-                addb_prob_masses = addb_prob_masses / sum_probs
+            #old = torch.min(drn_prob_masses/torch.diff(self.cutpoints))
+            if torch.min(drn_prob_masses/torch.diff(self.cutpoints)) == 0:
+                drn_prob_masses += 1e-25
+                sum_probs = torch.sum(drn_prob_masses, axis=1, keepdim=True)
+                drn_prob_masses = drn_prob_masses / sum_probs
                 
             assert torch.allclose(
-                torch.sum(addb_prob_masses, axis=1),
+                torch.sum(drn_prob_masses, axis=1),
                 torch.ones(x.shape[0], device=x.device),
             )
-            assert torch.min(addb_prob_masses/torch.diff(self.cutpoints)) > 0
+            assert torch.min(drn_prob_masses/torch.diff(self.cutpoints)) > 0
             
 
-        return baseline_dists, self.cutpoints, addb_prob_masses
+        return baseline_dists, self.cutpoints, drn_prob_masses
 
     def distributions(self, x):
         
