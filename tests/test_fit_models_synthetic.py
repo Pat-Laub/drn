@@ -71,6 +71,16 @@ def test_glm_from_statsmodels():
     y_ser = pd.Series(Y_train.detach().cpu().numpy(), name="Y")
     glm = df.GLM.from_statsmodels(X_df, y_ser, distribution='gaussian')
 
+    # Check that pandas objects from df.split_and_preprocess
+    x_train, x_val, x_test, y_train, y_val, y_test,\
+      x_train_raw, x_val_raw, x_test_raw,\
+          num_features, cat_features,\
+             all_categories, ct =\
+                df.split_and_preprocess(X_df, y_ser, ['X_0', 'X_1', 'X_2', 'X_3'], [], seed = 42, num_standard = True)
+    
+    glm = df.GLM.from_statsmodels(x_train, y_train, distribution='gaussian')
+
+
 
 def test_cann():
     print("\n\nTraining CANN\n")

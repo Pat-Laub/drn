@@ -169,11 +169,10 @@ def split_and_preprocess(features, target, num_features, cat_features, seed = 42
         x_test = ct.transform(x_test)
     else:
         ct = None
-
-       
-    x_train = pd.DataFrame(x_train, columns = features_one_hot.columns)
-    x_val = pd.DataFrame(x_val, columns = features_one_hot.columns)
-    x_test = pd.DataFrame(x_test, columns = features_one_hot.columns)
+   
+    x_train = pd.DataFrame(x_train, index = x_train_raw.index, columns = features_one_hot.columns)
+    x_val = pd.DataFrame(x_val, index = x_val_raw.index, columns = features_one_hot.columns)
+    x_test = pd.DataFrame(x_test, index = x_test_raw.index, columns = features_one_hot.columns)
 
     return(x_train, x_val, x_test, y_train, y_val, y_test,\
              x_train_raw, x_val_raw, x_test_raw,\
