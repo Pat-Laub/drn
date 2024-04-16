@@ -91,14 +91,13 @@ def train(
             if loss_val < best_loss:
                 best_loss = loss_val
                 best_model = copy.deepcopy(model.state_dict())
-                #best_model = model.state_dict()
                 no_improvement = 0
 
 
             else:
                 no_improvement += 1
 
-            if epoch % log_interval == 0:
+            if print_details and epoch % log_interval == 0:
                 tqdm.write(
                     f"Epoch {epoch} \t| batch train loss: {loss.item():.4f}"
                     + f"\t| validation loss:  {loss_val.item():.4f}"
@@ -108,7 +107,7 @@ def train(
             if no_improvement > patience:
                 if print_details:
                     tqdm.write("Stopping early!")
-                break  # Exit the loop
+                break
 
     finally:
         # Load the best model found during training
