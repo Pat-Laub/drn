@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .glm import GLM, gamma_convert_parameters
+from .glm import GLM, gamma_convert_parameters, estimate_dispersion
 
 
 class CANN(nn.Module):
@@ -22,20 +22,16 @@ class CANN(nn.Module):
             hidden_size: the number of neurons in each hidden layer
             train_glm: whether to retrain the GLM or not
         """
+        if not glm.distribution in ('gamma', 'gaussian'):
+            raise ValueError(f"Unsupported model type: {glm.distribution}")
+
         super(CANN, self).__init__()
 
         self.p = glm.p
         self.glm = glm.clone()
         self.train_glm = train_glm
         self.distribution = glm.distribution
-        
-
-        if self.distribution == 'gamma':
-            self.dispersion: Optional[float] = None
-        elif self.distribution == 'gaussian':
-            self.sigma: Optional[float] = None
-        else:
-            raise ValueError(f"Unsupported GLM type: {self.distribution}")
+        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
 
         layers = [nn.Linear(self.p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
@@ -46,23 +42,6 @@ class CANN(nn.Module):
         layers.append(nn.Linear(hidden_size, 1))
         self.nn_output_layer = nn.Sequential(*layers)
 
-    def glm_output(self, x: torch.Tensor) -> torch.Tensor:
-        """
-        Calculate the output for the GLM component.
-        Args:
-            x: the input features (shape: (n, p))
-        Returns:
-            the output depending on the GLM type
-        """
-        # If we don't want to retrain the GLM, then we don't need to track gradients
-        with torch.set_grad_enabled(self.train_glm):
-            if self.distribution == 'gamma':
-                return torch.exp(self.glm.log_mean(x)).squeeze(-1)
-            elif self.distribution == 'gaussian':
-                return self.glm.forward(x).squeeze(-1)
-            else:
-                raise ValueError(f"Unsupported GLM type: {self.distribution}")
-
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Calculate the predicted outputs for the distributions.
@@ -72,11 +51,11 @@ class CANN(nn.Module):
             the predicted outputs (shape: (n,))
         """
         if self.distribution == 'gamma':
-            out = torch.exp(self.glm_output(x) + self.nn_output_layer(x).squeeze(-1))
-        elif self.distribution == 'gaussian':
-            out = self.glm_output(x) + self.nn_output_layer(x).squeeze(-1)
+            out = torch.exp(self.glm.linear(x) + self.nn_output_layer(x))
         else:
-            raise ValueError(f"Unsupported GLM type: {self.distribution}")
+            out = self.glm.linear(x) + self.nn_output_layer(x)
+
+        out = out.squeeze(-1)
         assert out.shape == torch.Size([x.shape[0]])
         return out
 
@@ -84,20 +63,21 @@ class CANN(nn.Module):
         """
         Create distributional forecasts for the given inputs, specific to the model type.
         """
+        if torch.isnan(self.dispersion):
+            raise RuntimeError("Dispersion parameter has not been estimated yet.")
+
         if self.distribution == 'gamma':
-            if self.dispersion is None:
-                raise RuntimeError("Dispersion parameter has not been estimated yet.")
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             dists = torch.distributions.Gamma(alphas, betas)
-        elif self.distribution == 'gaussian':
-            if self.sigma is None:
-                raise RuntimeError("Standard deviation has not been estimated yet.")
-            mu = self.forward(x)
-            dists = torch.distributions.Normal(mu, self.sigma)
         else:
-            raise ValueError(f"Unsupported GLM type: {self.distribution}")
+            dists = torch.distributions.Normal(self.forward(x), self.dispersion)
+
         assert dists.batch_shape == torch.Size([x.shape[0]])
         return dists
+
+    def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
+        disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
+        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False) 
 
     def mean(self, x: np.ndarray) -> np.ndarray:
         """
@@ -162,10 +142,8 @@ class CANN(nn.Module):
         if self.distribution == 'gamma':
             quantiles = [self.icdf(x, torch.tensor(percentile / 100.0),\
                  l, u, max_iter, tolerance) for percentile in percentiles]
-        elif self.distribution == 'gaussian':
+        else:
             quantiles = [self.icdf(x, torch.tensor(percentile / 100.0),\
                  l, u, max_iter, tolerance) for percentile in percentiles]
-        else:
-            raise ValueError(f"Unsupported model type: {self.distribution}")
         return torch.stack(quantiles, dim=1)[0]
 

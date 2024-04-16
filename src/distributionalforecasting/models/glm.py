@@ -20,18 +20,14 @@ class GLM(nn.Module):
             p: the number of features in the model
             distribution: the type of GLM ('gamma' or 'gaussian')
         """
+        if not distribution in ('gamma', 'gaussian'):
+            raise ValueError(f"Unsupported model type: {distribution}")
+
         super(GLM, self).__init__()
         self.p = p
         self.distribution = distribution
         self.linear = nn.Linear(p, 1)
-
-        if distribution == 'gamma':
-            self.log_mean = self.linear
-            self.dispersion: Optional[float] = None  # Gamma distribution parameter
-        elif distribution == 'gaussian':
-            self.sigma: Optional[float] = None  # Standard deviation for Gaussian distribution
-        else:
-            raise ValueError(f"Unsupported model type: {self.distribution}")
+        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False) 
 
     @staticmethod
     def from_statsmodels(X: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor], distribution: str):
@@ -60,8 +56,6 @@ class GLM(nn.Module):
             family = Gamma(link=sm.families.links.Log())
         elif distribution == 'gaussian':
             family = Gaussian()
-        else:
-            raise ValueError(f"Unsupported model type: {distribution}")
         
         # Fit the GLM model
         model = sm.GLM(y, sm.add_constant(X), family=family)
@@ -77,11 +71,11 @@ class GLM(nn.Module):
 
         # Set additional parameters if needed
         if distribution == 'gamma':
-            # Assume dispersion is the scale parameter from statsmodels
-            torch_glm.dispersion = results.scale.item()
+            disp = results.scale.item()
         elif distribution == 'gaussian':
             # Standard deviation is the square root of the scale parameter
-            torch_glm.sigma = (results.scale ** 0.5).item()
+            disp = (results.scale ** 0.5).item()
+        torch_glm.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False) 
 
         if device:
             torch_glm = torch_glm.to(device)
@@ -91,10 +85,9 @@ class GLM(nn.Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.distribution == 'gamma':
             out = torch.exp(self.linear(x)).squeeze(-1)
-        elif self.distribution == 'gaussian':
-            out = self.linear(x).squeeze(-1)
         else:
-            raise ValueError(f"Unsupported model type: {self.distribution}")
+            out = self.linear(x).squeeze(-1)
+
         assert out.shape == torch.Size([x.shape[0]])
         return out
 
@@ -103,43 +96,25 @@ class GLM(nn.Module):
         Create an independent copy of the model.
         """
         glm = GLM(self.p, self.distribution)
-        glm.distribution =self.distribution
         glm.load_state_dict(self.state_dict())
-
-        if self.distribution == 'gamma':
-            glm.dispersion = self.dispersion
-           
-        elif self.distribution == 'gaussian':
-            glm.sigma = self.sigma
-            
         return glm
 
     def distributions(self, x: torch.Tensor) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
         """
-        if self.distribution == 'gamma':
-            return self._gamma_distributions(x)
-        elif self.distribution == 'gaussian':
-            return self._gaussian_distributions(x)
-        else:
-            raise ValueError(f"Unsupported model type: {self.distribution}")
-
-    def _gamma_distributions(self, x: torch.Tensor) -> torch.distributions.Gamma:
-        if self.dispersion is None:
+        if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
-        means = self.forward(x)
-        # Assuming the mean is the alpha parameter and dispersion is the beta parameter
-        alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
-        dists = torch.distributions.Gamma(alphas, betas)
-        return dists
 
-    def _gaussian_distributions(self, x: torch.Tensor) -> torch.distributions.Normal:
-        if self.sigma is None:
-            raise RuntimeError("Standard deviation has not been estimated yet.")
-        mu = self.forward(x)
-        dists = torch.distributions.Normal(mu, self.sigma)
-        return dists
+        if self.distribution == 'gamma':
+            alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
+            return torch.distributions.Gamma(alphas, betas)
+        else:
+            return torch.distributions.Normal(self.forward(x), self.dispersion)
+
+    def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
+        disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
+        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False) 
 
     def mean(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -266,7 +241,7 @@ def gamma_estimate_dispersion(mu: torch.Tensor, y: torch.Tensor, p: int) -> floa
 
 
 def gamma_convert_parameters(
-    mu: torch.Tensor, phi: float
+    mu: torch.Tensor, phi: torch.Tensor
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """
     Our models predict the mean of the gamma distribution, but we need the shape and rate parameters.
@@ -282,7 +257,7 @@ def gamma_convert_parameters(
     alpha = (1.0 / phi) * torch.ones_like(beta)
     return alpha, beta
 
-def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor, p: int) -> float:
+def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor) -> float:
     """
     For a Gaussian GLM, the dispersion parameter is estimated using the method of moments.
     Args:
@@ -294,3 +269,13 @@ def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor, p: int) -> float:
     variance_estimate = torch.sum((y - mu) ** 2)/(n-1)
     return (torch.sqrt(variance_estimate)).item()
 
+def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p: int):
+    """
+    Estimate the dispersion parameter for the given distribution.
+    """
+    if distribution == 'gamma':
+        return gamma_estimate_dispersion(mu, y, p)
+    elif distribution == 'gaussian':
+        return gaussian_estimate_sigma(mu, y)
+    else:
+        raise ValueError(f"Unsupported distribution: {distribution}")

@@ -37,9 +37,7 @@ def test_glm():
         epochs=2,
     )
 
-    glm.dispersion = df.gamma_estimate_dispersion(
-        glm.forward(X_train), Y_train, X_train.shape[1]
-    )
+    glm.update_dispersion(X_train, Y_train)
 
     check_crps(glm, X_train, Y_train)
 
@@ -55,7 +53,7 @@ def test_glm_from_statsmodels():
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
     
-    assert np.isclose(our_dispersion, glm.dispersion)
+    assert np.isclose(our_dispersion, glm.dispersion.item())
 
     # Construct GLM given training data in numpy arrays
     glm = df.GLM.from_statsmodels(X_train.detach().cpu().numpy(), Y_train.detach().cpu().numpy(), distribution='gamma')
@@ -64,7 +62,7 @@ def test_glm_from_statsmodels():
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
     
-    assert np.isclose(our_dispersion, glm.dispersion)
+    assert np.isclose(our_dispersion, glm.dispersion.item())
 
     # Check we avoid this 'iloc' warning when training on pandas data types
     X_df = pd.DataFrame(X_train.detach().cpu().numpy(), columns=[f"X_{i}" for i in range(X_train.shape[1])])
@@ -105,7 +103,7 @@ def test_cann():
         epochs=2,
     )
 
-    cann.dispersion = df.gamma_estimate_dispersion(cann.forward(X_train), Y_train, cann.p)
+    cann.update_dispersion(X_train, Y_train)
 
     check_crps(cann, X_train, Y_train)
 
@@ -174,9 +172,7 @@ def test_drn():
         val_dataset,
         epochs=2,
     )
-    glm.dispersion = df.gamma_estimate_dispersion(
-        glm.forward(X_train), Y_train, X_train.shape[1]
-    )
+    glm.update_dispersion(X_train, Y_train)
 
     drn = df.DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
     df.train(
