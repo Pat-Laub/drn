@@ -153,10 +153,6 @@ class GLM(nn.Module):
         for _ in range(max_iter):
             mid_points = (lower_bounds + upper_bounds) / 2
             cdf_vals = dists.cdf(mid_points)
-            # cdf_vals = torch.zeros(1, num_observations) 
-            # for i in range(num_observations):
-            #     cur_mid = mid_points[:, i]
-            #     cdf_vals[:, i] = dists.cdf(cur_mid.unsqueeze(-1))[:, i]
 
             # Update the bounds based on where the CDF values are relative to the target percentiles
             lower_update = cdf_vals < percentiles_tensor
@@ -178,10 +174,8 @@ class GLM(nn.Module):
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
         if self.distribution == 'gamma':
-            dists = self._gamma_distributions(x)
             quantiles = [self.icdf(x, torch.tensor(percentile/100), l, u, max_iter, tolerance) for percentile in percentiles]
         elif self.distribution == 'gaussian':
-            dists = self._gaussian_distributions(x)
             quantiles = [self.icdf(x, torch.tensor(percentile/100), l, u, max_iter, tolerance) for percentile in percentiles]
         else:
             raise ValueError(f"Unsupported model type: {self.distribution}")
