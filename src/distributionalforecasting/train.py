@@ -31,6 +31,7 @@ def train(
     batch_size=None,
     optimizer=torch.optim.Adam,
     print_details=True,
+    keep_best=True,
     gradient_clipping=False,
 ) -> None:
     """
@@ -71,17 +72,18 @@ def train(
                 optimizer.zero_grad()
                 loss = criterion(model(x), y)
                 loss.backward()
-
+                
+                # Check for NaN gradients
+                for name, param in model.named_parameters():
+                    if param.grad is not None:  # Parameters might not have gradients if they are not trainable
+                        if torch.isnan(param.grad).any():
+                            if print_details:
+                                tqdm.write("Stopping training as NaN gradient detected")
+                            raise ValueError(f"Gradient NaN detected in {name}. Try smaller learning rates.")
+                        
                 if gradient_clipping:
-                    # Check for NaN gradients
-                    for name, param in model.named_parameters():
-                        if param.grad is not None:  # Parameters might not have gradients if they are not trainable
-                            if torch.isnan(param.grad).any():
-                                raise ValueError(f"Gradient NaN detected in {name}. Try smaller learning rates.")
-
                     # If no error is raised, proceed with gradient clipping and optimizer step
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-
 
                 optimizer.step()
 
@@ -117,9 +119,10 @@ def train(
                 break
 
     finally:
-        # Load the best model found during training
-        model.load_state_dict(best_model)
-       
+        if keep_best:
+            # Load the best model found during training
+            model.load_state_dict(best_model)
+
 def split_and_preprocess(features, target, num_features, cat_features, seed = 42, num_standard = True):
     # Before preprocessing split
     x_train_raw, x_test_raw, y_train, y_test = train_test_split(
