@@ -7,6 +7,8 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 import numpy as np
 import pandas as pd
 import torch
+import statsmodels.api as sm
+from statsmodels.genmod.families import Gamma
 from synthetic_dataset import generate_synthetic_data
 
 import distributionalforecasting as df
@@ -76,9 +78,19 @@ def test_glm_from_statsmodels():
              all_categories, ct =\
                 df.split_and_preprocess(X_df, y_ser, ['X_0', 'X_1', 'X_2', 'X_3'], [], seed = 42, num_standard = True)
     
-    glm = df.GLM.from_statsmodels(x_train, y_train, distribution='gaussian')
+    glm = df.GLM.from_statsmodels(x_train, y_train, distribution='gamma')
+    glm = glm.to(X_train.device)
 
+    # Check that statsmodels predictions are just the same as ours
+    # Choose the correct family based on the distribution
+    model = sm.GLM(y_train, sm.add_constant(x_train), family=Gamma(link=sm.families.links.Log()))
+    results = model.fit()
+    statsmodels_predictions = results.predict(sm.add_constant(x_train))
+    
+    X_train = torch.tensor(x_train.values, dtype=X_train.dtype, device=X_train.device)
+    our_predictions = glm.forward(X_train).detach().cpu().numpy()
 
+    assert np.allclose(statsmodels_predictions, our_predictions)
 
 def test_cann():
     print("\n\nTraining CANN\n")
