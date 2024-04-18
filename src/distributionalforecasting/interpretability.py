@@ -160,7 +160,6 @@ class KernelSHAP_DRN():
             ax.set_xlabel(f'{feature_name_tuple[feature_idx]}', fontsize = 30)
             ax.set_ylabel(f'$\\phi_{{{tuple_indexes[feature_idx]+1}}}$', fontsize = 30)
             ax.set_title(f'SHAP Values for {feature_name_tuple[feature_idx]}', fontsize =30)
-            ax.grid(True)
             
         # plt.tick_params(axis='x', labelsize=14)
         # plt.tick_params(axis='y', labelsize=14)
@@ -748,7 +747,6 @@ class DRNExplainer:
             plt.title(title_name, fontsize=48 * label_adjustment_factor)
 
         # plt.title('Cumulative Distribution Functions (CDFs)', fontsize = 36)
-        plt.grid(True)
         plt.legend(prop={"size": 32 * (label_adjustment_factor - 0.15)})
 
     def kernel_shap_plot(
