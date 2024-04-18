@@ -165,7 +165,6 @@ class KernelSHAP_DRN():
         # plt.tick_params(axis='x', labelsize=14)
         # plt.tick_params(axis='y', labelsize=14)
         plt.tight_layout()
-        plt.show()
 
     def beeswarm_plot(self, features = None, output = 'value'):
         """
@@ -183,7 +182,6 @@ class KernelSHAP_DRN():
 
         # Beeswarm summary plot
         shap.summary_plot(shap_values,  self.explaining_data.iloc[:, features_idx], plot_size = (8, 6))
-        plt.show()
 
     def global_importance_plot(self, features = None, output = 'value'):
         """
@@ -214,8 +212,6 @@ class KernelSHAP_DRN():
         plt.ylabel("Features", fontsize = 35)
         plt.title("Global Feature Importance Based on SHAP Values", fontsize = 35)
         plt.gca().invert_yaxis()  # Invert y-axis to have the most important feature on top
-        plt.show()
-
         
     def shap_value_selection(self, indexes, output = 'value'):
         if output == 'value':
@@ -451,8 +447,6 @@ class DRNExplainer:
             x_min, x_max = x_range
         axes.set_xlim(x_min, x_max)
         axes.set_ylim(0, y_max)
-
-        plt.show()
  
     def plot_adjustment_factors(self, instance, cutpoints = None, num_interpolations = None,\
                                              other_df_models = None, model_names = None,\
@@ -658,8 +652,6 @@ class DRNExplainer:
         axes.set_ylim(0, y_max) 
         #axes.set_ylim(0, y_max)
 
-        plt.show()
-
     def cdf_plot(self, instance, grid = None, cutpoints = None, \
                                 num_interpolations = None,\
                                              other_df_models = None, model_names = None,\
@@ -758,7 +750,6 @@ class DRNExplainer:
         # plt.title('Cumulative Distribution Functions (CDFs)', fontsize = 36)
         plt.grid(True)
         plt.legend(prop={"size": 32 * (label_adjustment_factor - 0.15)})
-        plt.show()
 
     def kernel_shap_plot(
         self,
