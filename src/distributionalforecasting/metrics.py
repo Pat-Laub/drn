@@ -81,7 +81,6 @@ def quantile_losses(p, model, model_name, X, y, max_iter = 1000, tolerance = 5e-
     
     return score
 
-
 def rmse(y, y_hat):
     """
     Compute the Root Mean Square Error (RMSE) between the true values and predictions.
@@ -93,4 +92,4 @@ def rmse(y, y_hat):
     # Convert y to a PyTorch tensor if it is not already one
     y = torch.Tensor(y.values) if not isinstance(y, torch.Tensor) else y
     # Calculate the RMSE
-    return torch.sqrt(torch.mean((y - y_hat) ** 2))
+    return torch.sqrt(torch.mean((y.squeeze() - y_hat.squeeze()) ** 2))

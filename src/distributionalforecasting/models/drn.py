@@ -77,7 +77,7 @@ class DRN(nn.Module):
             # DRN cannot adjust regions with 0 probability, so we ensure 0's become
             # an incredibly small number just to avoid this issue.
             mass = torch.sum(glm_prob_masses, axis=1, keepdim=True)
-            glm_prob_masses = torch.clip(glm_prob_masses, min = 1e-100, max = 1.0)
+            glm_prob_masses = torch.clip(glm_prob_masses, min = 1e-10, max = 1.0)
             glm_prob_masses = glm_prob_masses / torch.sum(glm_prob_masses, axis=1, keepdim=True) * mass
         
         log_drn_non_norm_prob_masses = torch.log(glm_prob_masses) + self.log_adjustments(x)
