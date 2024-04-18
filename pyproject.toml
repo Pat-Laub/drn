@@ -6,8 +6,12 @@ build-backend = "hatchling.build"
 name = "distributionalforecasting"
 version = "0.0.1"
 dependencies = [
+    "matplotlib",
     "numpy",
+    "pandas",
     "scikit-learn",
+    "seaborn",
+    "shap",
     "statsmodels",
     "torch",
     "tqdm"
@@ -28,4 +32,4 @@ classifiers=[
 ]
 
 [project.optional-dependencies]
-dev = ["black", "ipykernel", "isort", "jupytext", "mypy", "pandas", "pytest"]
+dev = ["black", "ipykernel", "isort", "jupytext", "mypy", "pytest"]
