@@ -92,6 +92,8 @@ class DRN(nn.Module):
                 torch.ones(x.shape[0], device=x.device)
             )
 
+            #assert torch.min(drn_prob_masses) > 0
+
         return baseline_dists, self.cutpoints, drn_prob_masses
 
     def distributions(self, x):
@@ -142,16 +144,21 @@ def drn_nll_loss(pred, y,
     baseline_dists, cutpoints, prob_masses = pred
     dists = ExtendedHistogram(baseline_dists, cutpoints, prob_masses)
     losses = nll_loss(dists, y)
-    baseline_probs = torch.diff(baseline_dists.cdf(cutpoints.unsqueeze(-1)), axis = 0).T
+    with torch.no_grad():
+        baseline_probs = torch.diff(baseline_dists.cdf(cutpoints.unsqueeze(-1)), axis = 0).T
+        mass = torch.sum(baseline_probs, axis=1, keepdim=True)
+        baseline_probs = torch.clip(baseline_probs, min = 1e-10, max = 1.0)
+        baseline_probs = baseline_probs / torch.sum(baseline_probs, axis=1, keepdim=True) * mass
     if tv_alpha > 0 or dv_alpha > 0:
         drn_density = prob_masses/torch.diff(cutpoints)
         first_order_diffs = torch.diff(drn_density, dim=1)
         
     if kl_alpha > 0:
-        epsilon = 1e-12
-        hist_weight = baseline_dists.cdf(cutpoints[-1]) - baseline_dists.cdf(cutpoints[0])
-        real_adjustments = (prob_masses) / (baseline_probs + epsilon) * hist_weight.view(-1, 1)
-        penalty_loss = baseline_probs * real_adjustments * torch.log(real_adjustments+ epsilon) 
+        epsilon = 1e-30
+        with torch.no_grad():
+            hist_weight = baseline_dists.cdf(cutpoints[-1]) - baseline_dists.cdf(cutpoints[0])
+        real_adjustments = (prob_masses) / (baseline_probs+epsilon) * hist_weight.view(-1, 1)
+        penalty_loss = baseline_probs * real_adjustments * torch.log(real_adjustments+epsilon)
         losses += torch.mean(torch.sum(penalty_loss, axis = 0)) * kl_alpha
         
     if mean_alpha > 0:
@@ -179,16 +186,23 @@ def drn_jbce_loss(pred, y,
     baseline_dists, cutpoints, prob_masses = pred
     dists = ExtendedHistogram(baseline_dists, cutpoints, prob_masses)
     losses = jbce_loss(dists, y)
-    baseline_probs = torch.diff(baseline_dists.cdf(cutpoints.unsqueeze(-1)), axis = 0).T
+
+    with torch.no_grad():
+        baseline_probs = torch.diff(baseline_dists.cdf(cutpoints.unsqueeze(-1)), axis = 0).T
+        mass = torch.sum(baseline_probs, axis=1, keepdim=True)
+        baseline_probs = torch.clip(baseline_probs, min = 1e-10, max = 1.0)
+        baseline_probs = baseline_probs / torch.sum(baseline_probs, axis=1, keepdim=True) * mass
+
     if tv_alpha > 0 or dv_alpha > 0:
         drn_density = prob_masses/torch.diff(cutpoints)
         first_order_diffs = torch.diff(drn_density, dim=1)
         
     if kl_alpha > 0:
-        epsilon = 1e-12
-        hist_weight = baseline_dists.cdf(cutpoints[-1]) - baseline_dists.cdf(cutpoints[0])
-        real_adjustments = (prob_masses) / (baseline_probs + epsilon) * hist_weight.view(-1, 1)
-        penalty_loss = baseline_probs * real_adjustments * torch.log(real_adjustments+ epsilon) 
+        epsilon = 1e-30
+        with torch.no_grad():
+            hist_weight = baseline_dists.cdf(cutpoints[-1]) - baseline_dists.cdf(cutpoints[0])
+        real_adjustments = (prob_masses) / (baseline_probs+epsilon) * hist_weight.view(-1, 1)
+        penalty_loss = baseline_probs * real_adjustments * torch.log(real_adjustments+epsilon)
         losses += torch.mean(torch.sum(penalty_loss, axis = 0)) * kl_alpha
         
     if mean_alpha > 0:
