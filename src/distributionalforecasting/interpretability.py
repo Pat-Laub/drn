@@ -30,7 +30,7 @@ class KernelSHAP_DRN():
         Args:
         See the DRNExplainer class for explanations regarding 
         {explaining_data, nsamples_background_fraction, background_data_df_before_one_hot, one_hot_encoder}
-        value_function: v_{M}(S, x), given any instance x and indices S \subseteq \{1, ..., p\}
+        value_function: v_{M}(S, x), given any instance x and indices S \\subseteq \\{1, ..., p\\}
         """
         super(KernelSHAP_DRN, self).__init__()
         self.background_data_df_before_one_hot = background_data_df_before_one_hot
@@ -158,7 +158,7 @@ class KernelSHAP_DRN():
 
 
             ax.set_xlabel(f'{feature_name_tuple[feature_idx]}', fontsize = 30)
-            ax.set_ylabel(f'$\phi_{{{tuple_indexes[feature_idx]+1}}}$', fontsize = 30)
+            ax.set_ylabel(f'$\\phi_{{{tuple_indexes[feature_idx]+1}}}$', fontsize = 30)
             ax.set_title(f'SHAP Values for {feature_name_tuple[feature_idx]}', fontsize =30)
             ax.grid(True)
             
@@ -870,7 +870,7 @@ class DRNExplainer:
             else:
                 feature_name_text = f'{round(float(instance_value), 3)} ' 
             plt.text(phi_sum_old, y_position+(y_max/(50)),\
-                    f'$\phi_{{{top_K_indices[idx]}}}={round(float(phi), 3)}$; {feature_names_top[idx]}$= {feature_name_text}$', 
+                    f'$\\phi_{{{top_K_indices[idx]}}}={round(float(phi), 3)}$; {feature_names_top[idx]}$= {feature_name_text}$', 
                                       ha='left', fontsize=fontsize, color=color)
             
             # Adjust the regions
@@ -987,7 +987,7 @@ class DRNExplainer:
         rounded_factor, rounded_factor_background = self.region_adjustments(instance, region_start, region_end)
 
         if region_start != region_end:
-            text_label = f'$\hat{{a}}_{{{adjustment_idx}}}={rounded_factor}$'
+            text_label = f'$\\hat{{a}}_{{{adjustment_idx}}}={rounded_factor}$'
             #text_label_background = f'Avg.$={rounded_factor_background}$'
             plt.text(float(region_start + region_end) / 2, max_of_two+y_max/15, text_label, ha='center', fontsize=20, color = 'blue')
             #plt.text(float(region_start + region_end) / 2,  max_of_two-y_max/15, text_label_background, fontsize=16, color='gray')
