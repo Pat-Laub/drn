@@ -143,10 +143,12 @@ def split_and_preprocess(features, target, num_features, cat_features, seed = 42
 
     # Convert each categorical feature to a categorical type with all possible categories
     for feature in cat_features:
-        x_train_raw[feature] = pd.Categorical(x_train_raw[feature], categories=all_categories[feature])
-        x_val_raw[feature] = pd.Categorical(x_val_raw[feature], categories=all_categories[feature])
-        x_test_raw[feature] = pd.Categorical(x_test_raw[feature], categories=all_categories[feature])
-        features[feature] = pd.Categorical(features[feature], categories=all_categories[feature])
+        # Sort the categories to ensure consistent order
+        sorted_categories = sorted(all_categories[feature])
+        x_train_raw[feature] = pd.Categorical(x_train_raw[feature], categories=sorted_categories)
+        x_val_raw[feature] = pd.Categorical(x_val_raw[feature], categories=sorted_categories)
+        x_test_raw[feature] = pd.Categorical(x_test_raw[feature], categories=sorted_categories)
+        features[feature] = pd.Categorical(features[feature], categories=sorted_categories)
 
     # One-hot Encoding
     features_one_hot = pd.get_dummies(features, columns=cat_features)
