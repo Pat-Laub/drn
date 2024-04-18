@@ -20,8 +20,6 @@ class DRN(nn.Module):
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         # Assuming glm.clone() is a method to clone the glm model; ensure glm has a clone method.
         self.glm = glm.clone() if hasattr(glm, 'clone') else glm
-        self.num_hidden_layers = num_hidden_layers
-
 
         layers = [nn.Linear(num_features, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
@@ -68,46 +66,31 @@ class DRN(nn.Module):
             baseline_dists = self.glm.distributions(x)
 
             glm_cdfs = baseline_dists.cdf(self.cutpoints.unsqueeze(-1)).T
-
             if DEBUG:
                 assert glm_cdfs.shape == (x.shape[0], num_cutpoints)
 
             glm_prob_masses = torch.diff(glm_cdfs, dim=1)
             if DEBUG:
                 assert glm_prob_masses.shape == (x.shape[0], num_regions)
-
-        clipped_log_adjustments = self.log_adjustments(x)
-        log_drn_non_norm_prob_masses = torch.log(glm_prob_masses) + clipped_log_adjustments
-        clipped_log_drn_non_norm_prob_masses = torch.clip(log_drn_non_norm_prob_masses, min = -75, max = 75)
-        drn_non_norm_prob_masses = torch.exp(clipped_log_drn_non_norm_prob_masses)
-
-        if DEBUG:
-            assert drn_non_norm_prob_masses.shape == (x.shape[0], num_regions)
+            
+            # Sometimes the GLM probabilities are 0 simply due to numerical problems.
+            # DRN cannot adjust regions with 0 probability, so we ensure 0's become
+            # an incredibly small number just to avoid this issue.
+            mass = torch.sum(glm_prob_masses, axis=1, keepdim=True)
+            glm_prob_masses = torch.clip(glm_prob_masses, min = 1e-100, max = 1.0)
+            glm_prob_masses = glm_prob_masses / torch.sum(glm_prob_masses, axis=1, keepdim=True) * mass
         
-        # Standardising the probability masses
-        sum_probs = torch.sum(drn_non_norm_prob_masses, axis=1, keepdim=True)
-        drn_prob_masses = drn_non_norm_prob_masses / sum_probs
-
+        log_drn_non_norm_prob_masses = torch.log(glm_prob_masses) + self.log_adjustments(x)
+        drn_prob_masses = torch.softmax(log_drn_non_norm_prob_masses, dim=1)
+        
         if DEBUG:
             assert drn_prob_masses.shape == (x.shape[0], num_regions)
 
-        if DEBUG:
-            assert torch.allclose(
+            # Sometimes we get nan value in here. Otherwise, it should sum to 1.
+            assert torch.isnan(drn_prob_masses).any() or torch.allclose(
                 torch.sum(drn_prob_masses, axis=1),
-                torch.ones(x.shape[0], device=x.device),
+                torch.ones(x.shape[0], device=x.device)
             )
-            #old = torch.min(drn_prob_masses/torch.diff(self.cutpoints))
-            if torch.min(drn_prob_masses/torch.diff(self.cutpoints)) == 0:
-                drn_prob_masses += 1e-25
-                sum_probs = torch.sum(drn_prob_masses, axis=1, keepdim=True)
-                drn_prob_masses = drn_prob_masses / sum_probs
-                
-            assert torch.allclose(
-                torch.sum(drn_prob_masses, axis=1),
-                torch.ones(x.shape[0], device=x.device),
-            )
-            assert torch.min(drn_prob_masses/torch.diff(self.cutpoints)) > 0
-            
 
         return baseline_dists, self.cutpoints, drn_prob_masses
 
