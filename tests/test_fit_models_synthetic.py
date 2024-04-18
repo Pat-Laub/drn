@@ -194,5 +194,62 @@ def test_drn():
         val_dataset,
         epochs=2,
     )
-
     check_crps(drn, X_train, Y_train)
+
+def test_torch():
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    
+    cutpoints = setup_cutpoints(Y_train)
+
+    torch.manual_seed(5)
+    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+
+    hs = 5
+    drn = df.DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
+    df.train(
+        drn,
+        df.drn_jbce_loss,
+        train_dataset,
+        val_dataset,
+        epochs=2,
+    )
+
+    # Calculate the expected number of weights & biases given two layers of hs hidden units
+    expected_num_weights = hs * X_train.shape[1] + hs + hs * hs + hs
+    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
+    assert num_weights == expected_num_weights
+
+    # Try again using np.int64 instead of ints for the hyperparameters
+    drn = df.DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=np.int64(2), hidden_size=np.int64(hs))
+    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
+    assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
+
+    df.train(
+        drn,
+        df.drn_jbce_loss,
+        train_dataset,
+        val_dataset,
+        epochs=2,
+    )
+
+    # Check dropout is working as intended
+    drn = df.DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs, dropout_rate=0.5)
+    df.train(
+        drn,
+        df.drn_jbce_loss,
+        train_dataset,
+        val_dataset,
+        epochs=2,
+    )
+
+    # Make sure two different predictions (which in drn.train mode) are different
+    drn.train()
+    _, _, preds1 = drn(X_train)
+    _, _, preds2 = drn(X_train)
+    assert not torch.allclose(preds1, preds2)
+
+    # Make sure two different predictions (which in drn.eval mode) are the same
+    drn.eval()
+    _, _, preds1 = drn(X_train)
+    _, _, preds2 = drn(X_train)
+    assert torch.allclose(preds1, preds2)
