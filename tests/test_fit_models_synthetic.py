@@ -187,13 +187,23 @@ def test_drn():
     glm.update_dispersion(X_train, Y_train)
 
     drn = df.DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
+
+    # Try both loss functions with their regularisation terms enabled
     df.train(
         drn,
-        df.drn_jbce_loss,
+        lambda pred, y: df.drn_jbce_loss(pred, y, kl_alpha = 1, mean_alpha = 1, dv_alpha = 1, tv_alpha = 1),
         train_dataset,
         val_dataset,
         epochs=2,
     )
+    df.train(
+        drn,
+        lambda pred, y: df.drn_nll_loss(pred, y, kl_alpha = 1, mean_alpha = 1, dv_alpha = 1, tv_alpha = 1),
+        train_dataset,
+        val_dataset,
+        epochs=2,
+    )
+
     check_crps(drn, X_train, Y_train)
 
 def test_torch():
