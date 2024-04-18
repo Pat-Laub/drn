@@ -123,6 +123,9 @@ def train(
             # Load the best model found during training
             model.load_state_dict(best_model)
 
+        # Make sure dropout is always disabled after training
+        model.eval()
+
 def split_and_preprocess(features, target, num_features, cat_features, seed = 42, num_standard = True):
     # Before preprocessing split
     x_train_raw, x_test_raw, y_train, y_test = train_test_split(
