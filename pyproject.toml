@@ -32,4 +32,4 @@ classifiers=[
 ]
 
 [project.optional-dependencies]
-dev = ["black", "ipykernel", "isort", "jupytext", "mypy", "pytest"]
+dev = ["black", "ipykernel", "isort", "jupytext", "mypy", "pre-commit", "pytest"]
