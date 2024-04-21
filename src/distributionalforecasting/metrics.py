@@ -1,5 +1,6 @@
 import torch
 
+
 def crps(
     obs: torch.Tensor,
     grid: torch.Tensor,
@@ -38,11 +39,13 @@ def quantile_score(y_true, y_pred, p):
 
     :param y_true: Actual target values as a Pandas Series or PyTorch tensor.
     :param y_pred: Predicted target values as a numpy array or PyTorch tensor.
-    :param p: The cumulative probability as a float 
+    :param p: The cumulative probability as a float
     :return: The quantile score as a PyTorch tensor.
     """
     # Ensure that y_true and y_pred are PyTorch tensors
-    y_true = torch.Tensor(y_true.values) if not isinstance(y_true, torch.Tensor) else y_true
+    y_true = (
+        torch.Tensor(y_true.values) if not isinstance(y_true, torch.Tensor) else y_true
+    )
     y_pred = torch.Tensor(y_pred) if not isinstance(y_pred, torch.Tensor) else y_pred
     # Reshape y_pred to match y_true if necessary and compute the error
     e = y_true - y_pred.reshape(y_true.shape)
@@ -50,11 +53,22 @@ def quantile_score(y_true, y_pred, p):
     return torch.where(y_true >= y_pred, p * e, (1 - p) * -e).mean()
 
 
-def quantile_losses(p, model, model_name, X, y, max_iter = 1000, tolerance = 5e-5, l = None, u = None, print_score = True):
+def quantile_losses(
+    p,
+    model,
+    model_name,
+    X,
+    y,
+    max_iter=1000,
+    tolerance=5e-5,
+    l=None,
+    u=None,
+    print_score=True,
+):
     """
     Calculate and optionally print the quantile loss for the given data and model.
 
-    :param p: The cumulative probability ntile as a float 
+    :param p: The cumulative probability ntile as a float
     :param model: The trained model.
     :param model_name: The name of the trained model.
     :param X: Input features as a Pandas DataFrame or numpy array.
@@ -68,18 +82,23 @@ def quantile_losses(p, model, model_name, X, y, max_iter = 1000, tolerance = 5e-
     """
     # Predict quantiles based on the model name
     if model_name in ["GLM", "MDN", "CANN"]:
-        predicted_quantiles = model.quantiles(X, [p * 100], max_iter = max_iter, tolerance = tolerance, l = l, u = u)
+        predicted_quantiles = model.quantiles(
+            X, [p * 100], max_iter=max_iter, tolerance=tolerance, l=l, u=u
+        )
     elif model_name in ["DDR", "DRN"]:
-        predicted_quantiles = model.distributions(X).quantiles([p * 100], max_iter = max_iter, tolerance = tolerance, l = l, u = u)
-        
+        predicted_quantiles = model.distributions(X).quantiles(
+            [p * 100], max_iter=max_iter, tolerance=tolerance, l=l, u=u
+        )
+
     # Compute the quantile score
     score = quantile_score(y, predicted_quantiles, p)
 
     # Print the score if requested
     if print_score:
         print(f"{model_name}: {score:.5f}")
-    
+
     return score
+
 
 def rmse(y, y_hat):
     """

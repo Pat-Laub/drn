@@ -29,10 +29,8 @@ class ExtendedHistogram(Distribution):
         self.prob_masses = prob_masses
         self.cutpoints = cutpoints
         self.histogram = Histogram(cutpoints, prob_masses)
-        self.scale_down_hist =  (
-            baseline.cdf(cutpoints[-1]) - baseline.cdf(cutpoints[0])
-        )
-        
+        self.scale_down_hist = baseline.cdf(cutpoints[-1]) - baseline.cdf(cutpoints[0])
+
         assert self.scale_down_hist.shape == torch.Size([self.histogram.batch_shape[0]])
 
         super(ExtendedHistogram, self).__init__(
@@ -43,21 +41,21 @@ class ExtendedHistogram(Distribution):
         """
         Calculate the baseline probability vector
         """
-        return(self.baseline_prob_masses)
+        return self.baseline_prob_masses
 
     def real_adjustments(self) -> torch.Tensor:
         """
         Calculate the real adjustment factors a_k's
         """
-        return(self.real_adjustments)
+        return self.real_adjustments
 
     def prob(self, value: torch.Tensor) -> torch.Tensor:
         """
         Calculate the probability densities of `values`.
         """
-        
+
         orig_ndim = value.ndim
-        
+
         # Ensure the last dimension of value matches the batch_shape
         if value.shape[-1] != self.batch_shape[0]:
             if value.ndim == 1:
@@ -82,7 +80,6 @@ class ExtendedHistogram(Distribution):
 
         return probabilities
 
-    
     def log_prob(self, value: torch.Tensor) -> torch.Tensor:
         return torch.log(self.prob(value))
 
@@ -95,7 +92,11 @@ class ExtendedHistogram(Distribution):
         in_hist = (value >= self.histogram.cutpoints[0]) & (
             value < self.histogram.cutpoints[-1]
         )
-        in_hist = in_hist.expand(value.shape[0], self.batch_shape[0]) if in_hist.ndim > 1 else in_hist
+        in_hist = (
+            in_hist.expand(value.shape[0], self.batch_shape[0])
+            if in_hist.ndim > 1
+            else in_hist
+        )
         in_baseline = ~in_hist
 
         lower_cdf = self.baseline.cdf(self.histogram.cutpoints[0])
@@ -105,7 +106,6 @@ class ExtendedHistogram(Distribution):
         cdf_values[in_hist] = (lower_cdf + hist_cdf)[in_hist]
 
         return cdf_values
-
 
     def cdf_at_cutpoints(self) -> torch.Tensor:
         """
@@ -118,7 +118,7 @@ class ExtendedHistogram(Distribution):
         out = lower_cdf + hist_at_cutpoints
         return out
 
-    @property    
+    @property
     def mean(self) -> torch.Tensor:
         """
         Calculate the mean of the distribution.
@@ -127,35 +127,46 @@ class ExtendedHistogram(Distribution):
         """
         middle_of_bins = (self.cutpoints[1:] + self.cutpoints[:-1]) / 2
         return torch.sum(self.prob_masses * middle_of_bins, dim=1)
-    
-    
-    def icdf(self, p, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+
+    def icdf(self, p, l=None, u=None, max_iter=1000, tolerance=1e-7) -> torch.Tensor:
         """
         Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
-        
+
         Args:
             p: cumulative probability values at which to evaluate icdf
             l: lower bound for the quantile search
             u: upper bound for the quantile search
             max_iter: maximum number of iterations permitted for the quantile search
             tolerance: stopping criteria for the search (precision)
-            
+
         Returns:
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
 
-        num_observations = self.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[1]  # Dummy call to cdf to determine the batch size
-        percentiles_tensor = torch.full((1, num_observations), fill_value=p, dtype=torch.float32)
+        num_observations = self.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[
+            1
+        ]  # Dummy call to cdf to determine the batch size
+        percentiles_tensor = torch.full(
+            (1, num_observations), fill_value=p, dtype=torch.float32
+        )
 
-        
-       
         # Initialise matrices for the bounds
-        lower_bounds = l if l is not None else torch.Tensor([0]) #self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) 
-        upper_bounds = u if u is not None else self.cutpoints[-1] + (self.cutpoints[-1]-self.cutpoints[0])  # Adjust max value as needed
+        lower_bounds = (
+            l if l is not None else torch.Tensor([0])
+        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0])
+        upper_bounds = (
+            u
+            if u is not None
+            else self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
+        )  # Adjust max value as needed
 
-        lower_bounds = lower_bounds.repeat(num_observations).reshape(1, num_observations)
-        upper_bounds = upper_bounds.repeat(num_observations).reshape(1, num_observations)
-        
+        lower_bounds = lower_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
+        upper_bounds = upper_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
+
         for _ in range(max_iter):
             mid_points = (lower_bounds + upper_bounds) / 2
 
@@ -170,19 +181,29 @@ class ExtendedHistogram(Distribution):
             # Check for convergence
             if torch.max(upper_bounds - lower_bounds) < tolerance:
                 break
-        
+
         # Use the midpoint between the final bounds as the quantile estimate
         quantiles = (lower_bounds + upper_bounds) / 2
-        
+
         return quantiles
-    
-    
-    def quantiles(self, percentiles: list, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+
+    def quantiles(
+        self, percentiles: list, l=None, u=None, max_iter=1000, tolerance=1e-7
+    ) -> torch.Tensor:
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        l = torch.Tensor([0]) #self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
-        u = self.cutpoints[-1] + (self.cutpoints[-1]-self.cutpoints[0]) if u is None else u
-        quantiles = [self.icdf(torch.tensor(percentile / 100.0), l, u, max_iter, tolerance) for percentile in percentiles]
+        l = torch.Tensor(
+            [0]
+        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
+        u = (
+            self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
+            if u is None
+            else u
+        )
+        quantiles = [
+            self.icdf(torch.tensor(percentile / 100.0), l, u, max_iter, tolerance)
+            for percentile in percentiles
+        ]
 
         return torch.stack(quantiles, dim=1)[0]

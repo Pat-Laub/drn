@@ -15,8 +15,9 @@ from tqdm.auto import tqdm, trange
 # Define Criterion type hint
 Criterion = Union[
     Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-    Callable[[List[torch.Tensor], torch.Tensor], torch.Tensor]
+    Callable[[List[torch.Tensor], torch.Tensor], torch.Tensor],
 ]
+
 
 def train(
     model: nn.Module,
@@ -72,15 +73,19 @@ def train(
                 optimizer.zero_grad()
                 loss = criterion(model(x), y)
                 loss.backward()
-                
+
                 # Check for NaN gradients
                 for name, param in model.named_parameters():
-                    if param.grad is not None:  # Parameters might not have gradients if they are not trainable
+                    if (
+                        param.grad is not None
+                    ):  # Parameters might not have gradients if they are not trainable
                         if torch.isnan(param.grad).any():
                             if print_details:
                                 tqdm.write("Stopping training as NaN gradient detected")
-                            raise ValueError(f"Gradient NaN detected in {name}. Try smaller learning rates.")
-                        
+                            raise ValueError(
+                                f"Gradient NaN detected in {name}. Try smaller learning rates."
+                            )
+
                 if gradient_clipping:
                     # If no error is raised, proceed with gradient clipping and optimizer step
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -96,12 +101,11 @@ def train(
                 y = target.to(device)
 
                 loss_val += criterion(model(x), y)
-           
+
             if loss_val < best_loss:
                 best_loss = loss_val
                 best_model = copy.deepcopy(model.state_dict())
                 no_improvement = 0
-
 
             else:
                 no_improvement += 1
@@ -126,14 +130,17 @@ def train(
         # Make sure dropout is always disabled after training
         model.eval()
 
-def split_and_preprocess(features, target, num_features, cat_features, seed = 42, num_standard = True):
+
+def split_and_preprocess(
+    features, target, num_features, cat_features, seed=42, num_standard=True
+):
     # Before preprocessing split
     x_train_raw, x_test_raw, y_train, y_test = train_test_split(
-            features, target, random_state=seed, train_size=0.8, shuffle=True
+        features, target, random_state=seed, train_size=0.8, shuffle=True
     )
 
     x_train_raw, x_val_raw, y_train, y_val = train_test_split(
-            x_train_raw, y_train, random_state=seed, train_size=0.75, shuffle=True
+        x_train_raw, y_train, random_state=seed, train_size=0.75, shuffle=True
     )
 
     # Determine the full set of categories for each feature
@@ -145,46 +152,65 @@ def split_and_preprocess(features, target, num_features, cat_features, seed = 42
     for feature in cat_features:
         # Sort the categories to ensure consistent order
         sorted_categories = sorted(all_categories[feature])
-        x_train_raw[feature] = pd.Categorical(x_train_raw[feature], categories=sorted_categories)
-        x_val_raw[feature] = pd.Categorical(x_val_raw[feature], categories=sorted_categories)
-        x_test_raw[feature] = pd.Categorical(x_test_raw[feature], categories=sorted_categories)
-        features[feature] = pd.Categorical(features[feature], categories=sorted_categories)
+        x_train_raw[feature] = pd.Categorical(
+            x_train_raw[feature], categories=sorted_categories
+        )
+        x_val_raw[feature] = pd.Categorical(
+            x_val_raw[feature], categories=sorted_categories
+        )
+        x_test_raw[feature] = pd.Categorical(
+            x_test_raw[feature], categories=sorted_categories
+        )
+        features[feature] = pd.Categorical(
+            features[feature], categories=sorted_categories
+        )
 
     # One-hot Encoding
     features_one_hot = pd.get_dummies(features, columns=cat_features)
     features_one_hot = features_one_hot.astype(float)
-        
 
     x_train, x_test, y_train, y_test = train_test_split(
-            features_one_hot, target, random_state=seed, train_size=0.8, shuffle=True   
-     )
+        features_one_hot, target, random_state=seed, train_size=0.8, shuffle=True
+    )
 
     x_train, x_val, y_train, y_val = train_test_split(
-            x_train, y_train, random_state=seed, train_size=0.75, shuffle=True
+        x_train, y_train, random_state=seed, train_size=0.75, shuffle=True
     )
 
     if num_standard:
         # Standarise the numeric features.
         ct = ColumnTransformer(
-                [("standardize", StandardScaler(), num_features)],
-                remainder="passthrough",
-                verbose_feature_names_out=False,
+            [("standardize", StandardScaler(), num_features)],
+            remainder="passthrough",
+            verbose_feature_names_out=False,
         )
-            
 
         x_train = ct.fit_transform(x_train)
         x_val = ct.transform(x_val)
         x_test = ct.transform(x_test)
     else:
         ct = None
-   
-    x_train = pd.DataFrame(x_train, index = x_train_raw.index, columns = features_one_hot.columns)
-    x_val = pd.DataFrame(x_val, index = x_val_raw.index, columns = features_one_hot.columns)
-    x_test = pd.DataFrame(x_test, index = x_test_raw.index, columns = features_one_hot.columns)
 
-    return(x_train, x_val, x_test, y_train, y_val, y_test,\
-             x_train_raw, x_val_raw, x_test_raw,\
-                  num_features, cat_features,
-                      all_categories, ct)
+    x_train = pd.DataFrame(
+        x_train, index=x_train_raw.index, columns=features_one_hot.columns
+    )
+    x_val = pd.DataFrame(x_val, index=x_val_raw.index, columns=features_one_hot.columns)
+    x_test = pd.DataFrame(
+        x_test, index=x_test_raw.index, columns=features_one_hot.columns
+    )
 
-
+    return (
+        x_train,
+        x_val,
+        x_test,
+        y_train,
+        y_val,
+        y_test,
+        x_train_raw,
+        x_val_raw,
+        x_test_raw,
+        num_features,
+        cat_features,
+        all_categories,
+        ct,
+    )

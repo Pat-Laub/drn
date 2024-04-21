@@ -20,20 +20,24 @@ class GLM(nn.Module):
             p: the number of features in the model
             distribution: the type of GLM ('gamma' or 'gaussian')
         """
-        if not distribution in ('gamma', 'gaussian'):
+        if not distribution in ("gamma", "gaussian"):
             raise ValueError(f"Unsupported model type: {distribution}")
 
         super(GLM, self).__init__()
         self.p = p
         self.distribution = distribution
         self.linear = nn.Linear(p, 1)
-        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False) 
+        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
 
     @staticmethod
-    def from_statsmodels(X: Union[np.ndarray, torch.Tensor], y: Union[np.ndarray, torch.Tensor], distribution: str):
+    def from_statsmodels(
+        X: Union[np.ndarray, torch.Tensor],
+        y: Union[np.ndarray, torch.Tensor],
+        distribution: str,
+    ):
         """
         Fit a GLM using statsmodels and initialize a PyTorch GLM model with the fitted parameters.
-        
+
         Args:
             X: The feature matrix.
             y: The target vector.
@@ -52,11 +56,11 @@ class GLM(nn.Module):
             device = None
 
         # Choose the correct family based on the distribution
-        if distribution == 'gamma':
+        if distribution == "gamma":
             family = Gamma(link=sm.families.links.Log())
-        elif distribution == 'gaussian':
+        elif distribution == "gaussian":
             family = Gaussian()
-        
+
         # Fit the GLM model
         model = sm.GLM(y, sm.add_constant(X), family=family)
         results = model.fit()
@@ -66,16 +70,18 @@ class GLM(nn.Module):
 
         # Create a new PyTorch GLM instance
         torch_glm = GLM(p, distribution)
-        torch_glm.linear.weight.data = torch.tensor(betas[1:], dtype=torch.float32).unsqueeze(0)
+        torch_glm.linear.weight.data = torch.tensor(
+            betas[1:], dtype=torch.float32
+        ).unsqueeze(0)
         torch_glm.linear.bias.data = torch.tensor([betas[0]], dtype=torch.float32)
 
         # Set additional parameters if needed
-        if distribution == 'gamma':
+        if distribution == "gamma":
             disp = results.scale.item()
-        elif distribution == 'gaussian':
+        elif distribution == "gaussian":
             # Standard deviation is the square root of the scale parameter
-            disp = (results.scale ** 0.5).item()
-        torch_glm.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False) 
+            disp = (results.scale**0.5).item()
+        torch_glm.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
 
         if device:
             torch_glm = torch_glm.to(device)
@@ -83,7 +89,7 @@ class GLM(nn.Module):
         return torch_glm
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.distribution == 'gamma':
+        if self.distribution == "gamma":
             out = torch.exp(self.linear(x)).squeeze(-1)
         else:
             out = self.linear(x).squeeze(-1)
@@ -99,14 +105,16 @@ class GLM(nn.Module):
         glm.load_state_dict(self.state_dict())
         return glm
 
-    def distributions(self, x: torch.Tensor) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
+    def distributions(
+        self, x: torch.Tensor
+    ) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
         """
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
-        if self.distribution == 'gamma':
+        if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)
         else:
@@ -114,25 +122,33 @@ class GLM(nn.Module):
 
     def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
-        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False) 
+        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
 
     def mean(self, x: torch.Tensor) -> torch.Tensor:
         """
         Calculate the predicted means for the given observations.
         """
         return self.forward(x)
-    
-    def icdf(self, x: Union[np.ndarray, torch.Tensor], p, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+
+    def icdf(
+        self,
+        x: Union[np.ndarray, torch.Tensor],
+        p,
+        l=None,
+        u=None,
+        max_iter=1000,
+        tolerance=1e-7,
+    ) -> torch.Tensor:
         """
         Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
-        
+
         Args:
             p: cumulative probability values at which to evaluate icdf
             l: lower bound for the quantile search
             u: upper bound for the quantile search
             max_iter: maximum number of iterations permitted for the quantile search
             tolerance: stopping criteria for the search (precision)
-            
+
         Returns:
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
@@ -140,15 +156,27 @@ class GLM(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.Tensor(x)
         dists = self.distributions(x)
-        num_observations = dists.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[1]  # Dummy call to cdf to determine the batch size
-        percentiles_tensor = torch.full((1, num_observations), fill_value=p, dtype=torch.float32)
-        
-        # Initialise matrices for the bounds
-        lower_bounds = l if l is not None else torch.Tensor([0]) #self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) 
-        upper_bounds = u if u is not None else torch.Tensor([200])  # Adjust max value as needed
+        num_observations = dists.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[
+            1
+        ]  # Dummy call to cdf to determine the batch size
+        percentiles_tensor = torch.full(
+            (1, num_observations), fill_value=p, dtype=torch.float32
+        )
 
-        lower_bounds = lower_bounds.repeat(num_observations).reshape(1, num_observations)
-        upper_bounds = upper_bounds.repeat(num_observations).reshape(1, num_observations)
+        # Initialise matrices for the bounds
+        lower_bounds = (
+            l if l is not None else torch.Tensor([0])
+        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0])
+        upper_bounds = (
+            u if u is not None else torch.Tensor([200])
+        )  # Adjust max value as needed
+
+        lower_bounds = lower_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
+        upper_bounds = upper_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
 
         for _ in range(max_iter):
             mid_points = (lower_bounds + upper_bounds) / 2
@@ -163,35 +191,53 @@ class GLM(nn.Module):
             # Check for convergence
             if torch.max(upper_bounds - lower_bounds) < tolerance:
                 break
-        
+
         # Use the midpoint between the final bounds as the quantile estimate
         quantiles = (lower_bounds + upper_bounds) / 2
-        
+
         return quantiles
-    
-    def quantiles(self, x: torch.Tensor, percentiles: list, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+
+    def quantiles(
+        self,
+        x: torch.Tensor,
+        percentiles: list,
+        l=None,
+        u=None,
+        max_iter=1000,
+        tolerance=1e-7,
+    ) -> torch.Tensor:
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        if self.distribution == 'gamma':
-            quantiles = [self.icdf(x, torch.tensor(percentile/100), l, u, max_iter, tolerance) for percentile in percentiles]
-        elif self.distribution == 'gaussian':
-            quantiles = [self.icdf(x, torch.tensor(percentile/100), l, u, max_iter, tolerance) for percentile in percentiles]
+        if self.distribution == "gamma":
+            quantiles = [
+                self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
+                for percentile in percentiles
+            ]
+        elif self.distribution == "gaussian":
+            quantiles = [
+                self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
+                for percentile in percentiles
+            ]
         else:
             raise ValueError(f"Unsupported model type: {self.distribution}")
         return torch.stack(quantiles, dim=1)[0]
 
-    def quantiles_old(self, x: torch.Tensor, percentiles: list, grid: torch.Tensor) -> torch.Tensor:
+    def quantiles_old(
+        self, x: torch.Tensor, percentiles: list, grid: torch.Tensor
+    ) -> torch.Tensor:
         # Get the CDF values for each instance and cutpoint
         cdf_values = self.distributions(x).cdf(grid).detach().numpy()
-        quantile_levels =  torch.zeros((len(percentiles), x.shape[0]))
+        quantile_levels = torch.zeros((len(percentiles), x.shape[0]))
 
         # For each instance and each percentile, find the closest cutpoint index
         for i, percentile in enumerate(percentiles):
             quantile_value = percentile / 100
             abs_diff = np.abs(cdf_values - quantile_value)
             closest_idx = abs_diff.argmin(axis=0)
-            quantile_levels[i, :] = torch.Tensor([grid[idx] for idx in closest_idx]).reshape(1, x.shape[0])
+            quantile_levels[i, :] = torch.Tensor(
+                [grid[idx] for idx in closest_idx]
+            ).reshape(1, x.shape[0])
 
         return quantile_levels
 
@@ -207,6 +253,7 @@ def gamma_deviance_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Ten
     """
     loss = 2 * (y_true / y_pred - torch.log(y_true / y_pred) - 1)
     return torch.mean(loss)
+
 
 def gaussian_deviance_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:
     """
@@ -251,6 +298,7 @@ def gamma_convert_parameters(
     alpha = (1.0 / phi) * torch.ones_like(beta)
     return alpha, beta
 
+
 def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor) -> float:
     """
     For a Gaussian GLM, the dispersion parameter is estimated using the method of moments.
@@ -260,16 +308,17 @@ def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor) -> float:
         p: the number of features
     """
     n = mu.shape[0]
-    variance_estimate = torch.sum((y - mu) ** 2)/(n-1)
+    variance_estimate = torch.sum((y - mu) ** 2) / (n - 1)
     return (torch.sqrt(variance_estimate)).item()
+
 
 def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p: int):
     """
     Estimate the dispersion parameter for the given distribution.
     """
-    if distribution == 'gamma':
+    if distribution == "gamma":
         return gamma_estimate_dispersion(mu, y, p)
-    elif distribution == 'gaussian':
+    elif distribution == "gaussian":
         return gaussian_estimate_sigma(mu, y)
     else:
         raise ValueError(f"Unsupported distribution: {distribution}")

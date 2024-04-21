@@ -80,14 +80,13 @@ class Histogram(Distribution):
         """
         return torch.log(self.prob(value))
 
-
     def cdf(self, value: torch.Tensor) -> torch.Tensor:
         """
         Calculate the cumulative distribution function for the given values.
         """
         orig_ndim = value.ndim
         # Ensure the last dimension of value matches the batch_shape
-        if value.shape[-1] != self.batch_shape[0]: #and value.shape[-1] == 1:
+        if value.shape[-1] != self.batch_shape[0]:  # and value.shape[-1] == 1:
             return self.cdf_same_eval(value)
 
         # Ensure value is 2D
@@ -98,15 +97,13 @@ class Histogram(Distribution):
         cdf_values = torch.zeros_like(value)
 
         # Original cdf
-        cumulative_cdf = torch.cumsum(self.prob_masses, dim=-1).T  
+        cumulative_cdf = torch.cumsum(self.prob_masses, dim=-1).T
 
-    
         # Iterate over each bin
         for j in range(value.shape[0]):
 
-            y = value[j, :] 
+            y = value[j, :]
 
-            
             # Conditions now compare each element in y against the cutpoints
             # This assumes the intent is to apply the condition across all dimensions uniformly
             condition_above_last_cutpoint = y >= self.cutpoints[-1]
@@ -115,11 +112,13 @@ class Histogram(Distribution):
             # Since y is a vector, the assignment needs to respect the condition per element
             cdf_values[j, condition_above_last_cutpoint] = 1.0
             cdf_values[j, condition_below_first_cutpoint] = 0.0
-            #print(condition_above_last_cutpoint, y, cdf_values)
+            # print(condition_above_last_cutpoint, y, cdf_values)
 
             # Determine the index of the cutpoints
             y_expanded = y.unsqueeze(0)  # Now y has shape [1, n]
-            cutpoints_below = self.cutpoints[:-1].unsqueeze(1)  # Now self.cutpoints[:-1] has shape [K, 1]
+            cutpoints_below = self.cutpoints[:-1].unsqueeze(
+                1
+            )  # Now self.cutpoints[:-1] has shape [K, 1]
             cutpoints_above = self.cutpoints[1:].unsqueeze(1)
 
             # Perform comparison to determine bins
@@ -134,61 +133,88 @@ class Histogram(Distribution):
             above_max_mask = y_expanded.squeeze() >= self.cutpoints[-1]
 
             # Update last_bin_idx for values outside the cutpoints
-            last_bin_idx[below_min_mask] = 0  # First bin for values below the minimum cutpoint
-            last_bin_idx[above_max_mask] = len(self.cutpoints) - 2  # Last valid bin index for values above the maximum cutpoint
+            last_bin_idx[below_min_mask] = (
+                0  # First bin for values below the minimum cutpoint
+            )
+            last_bin_idx[above_max_mask] = (
+                len(self.cutpoints) - 2
+            )  # Last valid bin index for values above the maximum cutpoint
 
             # Determine next_bin_idx based on last_bin_idx
             next_bin_idx = last_bin_idx + 1
             # Ensure next_bin_idx does not exceed the number of bins
             next_bin_idx[above_max_mask] = len(self.cutpoints) - 1
 
-
             # Initialize 'last_cdfs' and 'next_cdfs' with zeros and ones, respectively
-            zeros = torch.zeros(size=(1, value.shape[1])) 
-            ones = torch.ones(size=(1, value.shape[1])) 
+            zeros = torch.zeros(size=(1, value.shape[1]))
+            ones = torch.ones(size=(1, value.shape[1]))
 
             # Ensure y is properly shaped for broadcasting. If y is already [1, n], this step might be redundant
             y = y.reshape(1, -1)  # Ensure y has shape [1, n]
 
-
             # Reshape or select cutpoints for broadcasting
             # If comparing against a single cutpoint, ensure it's shaped for broadcasting
-            cutpoint_for_comparison_lower = self.cutpoints[1].reshape(1, -1)  # Ensure cutpoint is shaped [1, 1] or similar for broadcasting
+            cutpoint_for_comparison_lower = self.cutpoints[1].reshape(
+                1, -1
+            )  # Ensure cutpoint is shaped [1, 1] or similar for broadcasting
             cutpoint_for_comparison_upper = self.cutpoints[-2].reshape(1, -1)
 
- 
             # Perform the comparison
-            condition_last_cdfs = y >= cutpoint_for_comparison_lower  # This should now result in a shape [1, n]
+            condition_last_cdfs = (
+                y >= cutpoint_for_comparison_lower
+            )  # This should now result in a shape [1, n]
             condition_next_cdfs = y < cutpoint_for_comparison_upper
 
             # Update 'last_cdfs' based on condition, considering 'cumulative_cdf' indexing
             # Ensure 'last_bin_idx' and 'next_bin_idx' are correctly broadcasted or indexed to match 'y's dimensions
-            last_cdfs = torch.where(condition_last_cdfs,\
-                 cumulative_cdf[(last_bin_idx-1).unsqueeze(0), torch.arange(cumulative_cdf.shape[1])],\
-                 zeros)
-            next_cdfs = torch.where(condition_next_cdfs,\
-                 cumulative_cdf[(next_bin_idx-1).unsqueeze(0), torch.arange(cumulative_cdf.shape[1])],\
-                 ones)
+            last_cdfs = torch.where(
+                condition_last_cdfs,
+                cumulative_cdf[
+                    (last_bin_idx - 1).unsqueeze(0),
+                    torch.arange(cumulative_cdf.shape[1]),
+                ],
+                zeros,
+            )
+            next_cdfs = torch.where(
+                condition_next_cdfs,
+                cumulative_cdf[
+                    (next_bin_idx - 1).unsqueeze(0),
+                    torch.arange(cumulative_cdf.shape[1]),
+                ],
+                ones,
+            )
 
             last_bin_idx_expanded = last_bin_idx.unsqueeze(0).expand(y.shape[0], -1)
             next_bin_idx_expanded = next_bin_idx.unsqueeze(0).expand(y.shape[0], -1)
 
             # Determine cutpoints based on conditions
-            cutpoint_low = torch.where(y < self.cutpoints[1].unsqueeze(0), self.cutpoints[0], self.cutpoints[last_bin_idx_expanded])
-            cutpoint_high = torch.where(y >= self.cutpoints[-2].unsqueeze(0), self.cutpoints[-1], self.cutpoints[next_bin_idx_expanded])
-        
+            cutpoint_low = torch.where(
+                y < self.cutpoints[1].unsqueeze(0),
+                self.cutpoints[0],
+                self.cutpoints[last_bin_idx_expanded],
+            )
+            cutpoint_high = torch.where(
+                y >= self.cutpoints[-2].unsqueeze(0),
+                self.cutpoints[-1],
+                self.cutpoints[next_bin_idx_expanded],
+            )
+
             # Determine bin_width based on conditions
-            bin_width = torch.where(y < self.cutpoints[1].unsqueeze(0), self.bin_widths[0], self.bin_widths[last_bin_idx_expanded])
+            bin_width = torch.where(
+                y < self.cutpoints[1].unsqueeze(0),
+                self.bin_widths[0],
+                self.bin_widths[last_bin_idx_expanded],
+            )
 
             # Compute bin_fraction for each feature across all observations
             bin_fraction = (y - cutpoint_low) / bin_width
 
             # Compute cdf_values using the previously obtained last_cdfs and next_cdfs for each feature across all observations
             # Ensure last_cdfs and next_cdfs are retrieved using the approach described in previous steps and have the correct shape
-            cdf_values[j,:] = last_cdfs + (next_cdfs - last_cdfs) * bin_fraction
-    
-        cdf_values = torch.clamp(cdf_values, max=1., min = 0.)
-        
+            cdf_values[j, :] = last_cdfs + (next_cdfs - last_cdfs) * bin_fraction
+
+        cdf_values = torch.clamp(cdf_values, max=1.0, min=0.0)
+
         # If we added a leading dimension, remove it
         if orig_ndim == 1 and cdf_values.ndim == 2:
             cdf_values = cdf_values.squeeze(0)
@@ -215,7 +241,7 @@ class Histogram(Distribution):
         cdf_values = torch.zeros_like(value)
 
         # Original cdf
-        cumulative_cdf = torch.cumsum(self.prob_masses, dim=-1).T  
+        cumulative_cdf = torch.cumsum(self.prob_masses, dim=-1).T
 
         # Iterate over each bin
         for j in range(value.shape[0]):
@@ -229,30 +255,50 @@ class Histogram(Distribution):
                 continue
 
             # Determine the index of the cutpoints
-            last_bin_idx = ((y >= self.cutpoints[:-1]) & (y < self.cutpoints[1:])).nonzero(as_tuple=True)[0]
+            last_bin_idx = (
+                (y >= self.cutpoints[:-1]) & (y < self.cutpoints[1:])
+            ).nonzero(as_tuple=True)[0]
             next_bin_idx = last_bin_idx + 1
-            
-            # Set cdfs for the lower and upper bounds
-            last_cdfs = torch.zeros(size=(1, value.shape[1]), device=value.device) if y < self.cutpoints[1] else cumulative_cdf[last_bin_idx-1, :]
-            next_cdfs = torch.ones(size=(1, value.shape[1]), device=value.device) if y >= self.cutpoints[-2] else cumulative_cdf[next_bin_idx-1, :]
 
+            # Set cdfs for the lower and upper bounds
+            last_cdfs = (
+                torch.zeros(size=(1, value.shape[1]), device=value.device)
+                if y < self.cutpoints[1]
+                else cumulative_cdf[last_bin_idx - 1, :]
+            )
+            next_cdfs = (
+                torch.ones(size=(1, value.shape[1]), device=value.device)
+                if y >= self.cutpoints[-2]
+                else cumulative_cdf[next_bin_idx - 1, :]
+            )
 
             # Compute cdf_values
-            cutpoint_low = self.cutpoints[0] if y < self.cutpoints[1] else self.cutpoints[last_bin_idx]
-            cutpoint_high = self.cutpoints[-1] if y >= self.cutpoints[-2] else self.cutpoints[next_bin_idx]
-            bin_width = self.bin_widths[0] if y < self.cutpoints[1] else self.bin_widths[last_bin_idx]
+            cutpoint_low = (
+                self.cutpoints[0]
+                if y < self.cutpoints[1]
+                else self.cutpoints[last_bin_idx]
+            )
+            cutpoint_high = (
+                self.cutpoints[-1]
+                if y >= self.cutpoints[-2]
+                else self.cutpoints[next_bin_idx]
+            )
+            bin_width = (
+                self.bin_widths[0]
+                if y < self.cutpoints[1]
+                else self.bin_widths[last_bin_idx]
+            )
             bin_fraction = (y - cutpoint_low) / bin_width
             cdf_values[j, :] = last_cdfs + (next_cdfs - last_cdfs) * bin_fraction
-        
-        
-        cdf_values = torch.clamp(cdf_values, max=1., min = 0.)
-        
+
+        cdf_values = torch.clamp(cdf_values, max=1.0, min=0.0)
+
         # If we added a leading dimension, remove it
         if orig_ndim == 1 and cdf_values.ndim == 2:
             cdf_values = cdf_values.squeeze(0)
 
         return cdf_values
-    
+
     def cdf_at_cutpoints(self) -> torch.Tensor:
         """
         Calculate the cumulative distribution function at each cutpoint.
@@ -278,32 +324,44 @@ class Histogram(Distribution):
         middle_of_bins = (self.cutpoints[1:] + self.cutpoints[:-1]) / 2
         return torch.sum(self.prob_masses * middle_of_bins, dim=1)
 
-    
-    def icdf(self, p, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+    def icdf(self, p, l=None, u=None, max_iter=1000, tolerance=1e-7) -> torch.Tensor:
         """
         Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
-        
+
         Args:
             p: cumulative probability values at which to evaluate icdf
             l: lower bound for the quantile search
             u: upper bound for the quantile search
             max_iter: maximum number of iterations permitted for the quantile search
             tolerance: stopping criteria for the search (precision)
-            
+
         Returns:
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
 
-        num_observations = self.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[1]  # Dummy call to cdf to determine the batch size
-        percentiles_tensor = torch.full((1, num_observations), fill_value=p, dtype=torch.float32)
+        num_observations = self.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[
+            1
+        ]  # Dummy call to cdf to determine the batch size
+        percentiles_tensor = torch.full(
+            (1, num_observations), fill_value=p, dtype=torch.float32
+        )
 
-       
         # Initialise matrices for the bounds
-        lower_bounds = l if l is not None else torch.Tensor([0]) #self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) 
-        upper_bounds = u if u is not None else self.cutpoints[-1] + (self.cutpoints[-1]-self.cutpoints[0])  # Adjust max value as needed
+        lower_bounds = (
+            l if l is not None else torch.Tensor([0])
+        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0])
+        upper_bounds = (
+            u
+            if u is not None
+            else self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
+        )  # Adjust max value as needed
 
-        lower_bounds = lower_bounds.repeat(num_observations).reshape(1, num_observations)
-        upper_bounds = upper_bounds.repeat(num_observations).reshape(1, num_observations)
+        lower_bounds = lower_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
+        upper_bounds = upper_bounds.repeat(num_observations).reshape(
+            1, num_observations
+        )
 
         for _ in range(max_iter):
             mid_points = (lower_bounds + upper_bounds) / 2
@@ -319,20 +377,30 @@ class Histogram(Distribution):
             # Check for convergence
             if torch.max(upper_bounds - lower_bounds) < tolerance:
                 break
-        
+
         # Use the midpoint between the final bounds as the quantile estimate
         quantiles = (lower_bounds + upper_bounds) / 2
-        
+
         return quantiles
-    
-    
-    def quantiles(self, percentiles: list, l = None, u = None, max_iter = 1000, tolerance = 1e-7) -> torch.Tensor:
+
+    def quantiles(
+        self, percentiles: list, l=None, u=None, max_iter=1000, tolerance=1e-7
+    ) -> torch.Tensor:
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        
-        l = torch.Tensor([0]) #self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
-        u = self.cutpoints[-1] + (self.cutpoints[-1]-self.cutpoints[0]) if u is None else u
-        quantiles = [self.icdf(torch.tensor(percentile / 100.0), l, u, max_iter, tolerance) for percentile in percentiles]
+
+        l = torch.Tensor(
+            [0]
+        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
+        u = (
+            self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
+            if u is None
+            else u
+        )
+        quantiles = [
+            self.icdf(torch.tensor(percentile / 100.0), l, u, max_iter, tolerance)
+            for percentile in percentiles
+        ]
 
         return torch.stack(quantiles, dim=1)[0]

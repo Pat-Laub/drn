@@ -1,4 +1,3 @@
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -7,7 +6,9 @@ from ..distributions.histogram import Histogram
 
 
 class DDR(nn.Module):
-    def __init__(self, p: int, cutpoints, num_hidden_layers=2, hidden_size=100, dropout_rate = 0.2):
+    def __init__(
+        self, p: int, cutpoints, num_hidden_layers=2, hidden_size=100, dropout_rate=0.2
+    ):
         """
         Args:
             x_train_shape: The shape of the training data, used to define the input size of the first layer.
@@ -19,15 +20,19 @@ class DDR(nn.Module):
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         self.p = p
 
-        layers = [nn.Linear(self.p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
+        layers = [
+            nn.Linear(self.p, hidden_size),
+            nn.LeakyReLU(),
+            nn.Dropout(dropout_rate),
+        ]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
             layers.append(nn.LeakyReLU())
-            layers.append(nn.Dropout(dropout_rate)) 
+            layers.append(nn.Dropout(dropout_rate))
 
         # Use nn.Sequential to chain the layers together
         self.hidden_layers = nn.Sequential(*layers)
-        
+
         # Output layer for the pi values
         self.pi = nn.Linear(hidden_size, len(self.cutpoints) - 1)
 
@@ -41,10 +46,10 @@ class DDR(nn.Module):
         """
         # Pass input through the dynamically created hidden layers
         h = self.hidden_layers(x)
-        
+
         # Calculate probabilities using the final layer
         probs = torch.softmax(self.pi(h), dim=1)
-        
+
         return self.cutpoints, probs
 
     def distributions(self, x):
@@ -60,9 +65,9 @@ def jbce_loss(dists, y, alpha=0.0):
     Args:
         dists: the predicted distributions
         y: the observed values
-        alpha: the penalty parameter 
+        alpha: the penalty parameter
     """
-    
+
     cutpoints = dists.cutpoints
     cdf_at_cutpoints = dists.cdf_at_cutpoints()
 
@@ -87,17 +92,20 @@ def jbce_loss(dists, y, alpha=0.0):
 
     return torch.mean(losses)
 
+
 def ddr_loss(pred, y, alpha=0.0):
     cutpoints, prob_masses = pred
     dists = Histogram(cutpoints, prob_masses)
     return jbce_loss(dists, y, alpha)
 
+
 def nll_loss(dists, y, alpha=0.0):
     losses = -(dists.log_prob(y))
     return torch.mean(losses)
+
 
 def ddr_cutpoints(c_0, c_K, p, y):
     num_cutpoints = int(np.ceil(p * len(y)))
     cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
 
-    return(cutpoints)
+    return cutpoints

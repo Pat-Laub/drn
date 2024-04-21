@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+
 def generate_synthetic_data(n=1000, seed=1):
     rng = np.random.default_rng(seed)
     x_all = rng.random(size=(n, 4))
@@ -19,14 +20,17 @@ def generate_synthetic_data(n=1000, seed=1):
     y_lognormal = np.exp(rng.normal(means / 4, dispersion))
     y_gamma = rng.gamma(1 / dispersion, scale=dispersion * means / 4)
 
-    y_all = y_gamma * 0.5 + y_lognormal * 0.5 + epsilon ** 2
-    
+    y_all = y_gamma * 0.5 + y_lognormal * 0.5 + epsilon**2
+
     num_val = int(n * 0.2)
     num_test = int(n * 0.2)
     num_train = n - num_val - num_test
 
     x_train, y_train = x_all[:num_train], y_all[:num_train]
-    x_val, y_val = x_all[num_train:num_train + num_val], y_all[num_train:num_train + num_val]
+    x_val, y_val = (
+        x_all[num_train : num_train + num_val],
+        y_all[num_train : num_train + num_val],
+    )
 
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
