@@ -451,7 +451,6 @@ class DRNExplainer:
                                              other_df_models = None, model_names = None,\
                                                   percentiles = None, cutpoints_label_bool = False,\
                                                       synthetic_data = None,\
-                                                         mdn_model = None,\
                                                              plot_adjustments_labels = True, x_range = None, y_range = None,\
                                                      plot_title = None, plot_mean_adjustment = False, plot_y_label = None,\
                                                           density_transparency = 1.0, figsize = (20, 15), label_adjustment_factor = 1.0):
@@ -652,13 +651,10 @@ class DRNExplainer:
         #axes.set_ylim(0, y_max)
 
     def cdf_plot(self, instance, grid = None, cutpoints = None, \
-                                num_interpolations = None,\
                                              other_df_models = None, model_names = None,\
                                                       synthetic_data = None,\
                                                         x_range = None,\
                                                      plot_title = None,\
-                                                         plot_mean_adjustment = False,\
-                                                             plot_y_label = None,\
                                                                 plot_baseline = True,
                                                          density_transparency = 1.0,
                                                          dist_property = "Mean",
@@ -687,8 +683,8 @@ class DRNExplainer:
         grid = torch.linspace(lower_cutpoint, upper_cutpoint, 100).unsqueeze(-1) if grid is None else grid    
 
         # Assuming 'cdf_drn' computation is done as you've mentioned
-        cdfs_glm = glm.distributions(instance).cdf(grid).detach().numpy()
-        cdfs_drn = drn.distributions(instance).cdf(grid).detach().numpy()
+        cdfs_glm = self.glm.distributions(instance).cdf(grid).detach().numpy()
+        cdfs_drn = self.drn.distributions(instance).cdf(grid).detach().numpy()
 
         # Plotting
         figure, axes = plt.subplots(1, 1, figsize=figsize)
