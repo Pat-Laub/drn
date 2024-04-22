@@ -10,6 +10,7 @@ import seaborn as sns
 import shap
 import torch
 import sklearn
+from scipy.stats import gaussian_kde
 from sklearn.compose import ColumnTransformer
 
 
@@ -612,14 +613,14 @@ class DRNExplainer:
         cutpoints_label_bool=False,
         synthetic_data=None,
         plot_adjustments_labels=True,
+        axes: plt.Axes = None,
         x_range=None,
         y_range=None,
         plot_title=None,
         plot_mean_adjustment=False,
         plot_y_label=None,
         density_transparency=1.0,
-        figsize=(20, 15),
-        label_adjustment_factor=1.0,
+        figsize=None,
     ):
         """
         Plot the adjustment factors for each of the partitioned interval.
@@ -665,7 +666,13 @@ class DRNExplainer:
         drn_pdf = self.drn.distributions(instance).prob(lst_tensor).detach().numpy()
 
         # Set up the plot
-        figure, axes = plt.subplots(1, 1, figsize=figsize)
+        if axes is not None and figsize is not None:
+            axes.figure.set_size_inches(figsize)
+        if axes is None:
+            _, axes = plt.subplots(1, 1, figsize=figsize)
+
+        plt.sca(axes)
+
         y_max = 1.5 * max(drn_pdf.max(), glm_pdf[1:].max())
         x_min, x_max = cutpoints[0], cutpoints[-1]
 
@@ -683,8 +690,8 @@ class DRNExplainer:
             lst_tensor[index_of_closest_first:index_of_closest_last],
             glm_pdf[index_of_closest_first:index_of_closest_last],
             color="black",
-            linewidth=3,
-            label="Baseline Density",
+            linewidth=2,
+            label="GLM",
             alpha=density_transparency,
         )
 
@@ -699,7 +706,7 @@ class DRNExplainer:
                 grid_new,
                 np.full_like(grid_new, drn_pdf_value),
                 color="blue",
-                linewidth=3,
+                linewidth=2,
                 alpha=density_transparency,
             )
             # Draw vertical dashed lines between the jumps
@@ -711,8 +718,8 @@ class DRNExplainer:
                     drn_pdf[i],
                     drn_pdf[i + 1],
                     color="blue",
-                    linewidth=2,
-                    linestyles="dashed",
+                    linewidth=1,
+                    linestyles="dotted",
                     alpha=density_transparency,
                 )
 
@@ -722,8 +729,8 @@ class DRNExplainer:
                 grid_new,
                 np.full_like(grid_new, drn_pdf_value),
                 color="blue",
-                linewidth=3,
-                label="Adjusted Density",
+                linewidth=2,
+                label="DRN",
                 alpha=density_transparency,
             )
 
@@ -924,13 +931,17 @@ class DRNExplainer:
             y = np.array(
                 synthetic_data(500000, 0, specific_instance=instance_np)[1].values
             )
-            sns.kdeplot(
-                y,
+            density = gaussian_kde(y)
+
+            # Plotting
+            x = np.linspace(x_range[0], x_range[1], num_interpolations)
+            plt.plot(
+                x,
+                density(x),
                 color="red",
-                label="True Density",
-                gridsize=3000,
-                linewidth=3,
+                linewidth=2,
                 alpha=density_transparency,
+                label="True (KDE)",
             )
 
         if plot_mean_adjustment:
@@ -966,13 +977,13 @@ class DRNExplainer:
             )
 
         # Adding labels and title
-        plt.xlabel("Y", fontsize=42 * label_adjustment_factor)
+        plt.xlabel("$y$")
 
         y_label = "$f(y|X=x^*)$"
         plt.gca().set_ylabel("")
         if plot_y_label is not None:
             y_label = plot_y_label
-            plt.ylabel(y_label, fontsize=42 * label_adjustment_factor)
+            plt.ylabel(y_label)
 
         title_name = (
             "Density Plot with Adjustment Factors"
@@ -981,20 +992,16 @@ class DRNExplainer:
         )
         if plot_title is not None:
             title_name = plot_title
-        plt.title(title_name, fontsize=48 * label_adjustment_factor)
+        plt.title(title_name)
 
-        plt.legend(
-            prop={"size": 32 * (label_adjustment_factor - 0.15)}, loc="upper right"
-        )
+        plt.legend(loc="upper right")
         if x_range is not None:
             x_min, x_max = x_range
-        # axes.set_xlim(max(0, x_min), x_max)
         axes.set_xlim(x_min, x_max)
         y_max = y_max if plot_adjustments_labels else None
         if y_range is not None:
             y_max = y_range[1]
         axes.set_ylim(0, y_max)
-        # axes.set_ylim(0, y_max)
 
     def cdf_plot(
         self,
