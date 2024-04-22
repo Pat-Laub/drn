@@ -26,7 +26,7 @@ class KernelSHAP_DRN:
         self,
         explaining_data,
         nsamples_background_fraction,
-        background_data_df_before_one_hot,
+        background_data_df_before_one_hot: pd.DataFrame,
         one_hot_encoder,
         value_function,
         glm_value_function,
@@ -60,7 +60,9 @@ class KernelSHAP_DRN:
                     self.background_data_df_before_one_hot, nsamples=sample_size
                 ),
             )
-            self.shap_values_kernel = kernel_shap_explainer(self.explaining_data)
+            self.shap_values_kernel = kernel_shap_explainer(
+                self.explaining_data, l1_reg="num_features(10)"
+            )
             self.shap_base_values = self.shap_values_kernel.base_values
             self.shap_values = self.shap_values_kernel.values
 
@@ -74,7 +76,7 @@ class KernelSHAP_DRN:
                     ),
                 )
                 self.shap_values_kernel_glm = kernel_shap_explainer_glm(
-                    self.explaining_data
+                    self.explaining_data, l1_reg="num_features(10)"
                 )
 
     def forward(self):
@@ -626,7 +628,7 @@ class DRNExplainer:
         instance = (
             self._to_tensor(self.one_hot_encoder(instance))
             if self.all_categories is not None
-            else self._to_tensor(self.num_feature_std(instance))
+            else self._to_tensor(instance)
         )
 
         # If we are plotting concerning quantiles
@@ -1028,7 +1030,7 @@ class DRNExplainer:
         instance = (
             self._to_tensor(self.one_hot_encoder(instance))
             if self.all_categories is not None
-            else self._to_tensor(self.num_feature_std(instance))
+            else self._to_tensor(instance)
         )
         # Interpolation
         lower_cutpoint = x_range[0] if x_range is not None else cutpoints[0]
@@ -1115,7 +1117,7 @@ class DRNExplainer:
         axes.set_xlim(max(0, x_min), x_max)
         if y_range is not None:
             axes.set_ylim(y_range[0], y_range[1])
-        plt.xlabel("$Y$", fontsize=42 * label_adjustment_factor)
+        plt.xlabel("$y$", fontsize=42 * label_adjustment_factor)
         plt.ylabel("Cumulative Probability", fontsize=32 * label_adjustment_factor)
 
         plt.gca().set_ylabel("")
@@ -1333,15 +1335,12 @@ class DRNExplainer:
                 else None
             )
             DP_glm = (
-                self.glm.quantiles(instance, [percentile]).detach().numpy()[0][0]
+                self.glm.quantiles(instance, [percentile]).item()
                 if percentile and adjustment
                 else 0
             )
             DP_drn = (
-                self.drn.distributions(instance)
-                .quantiles([percentile])
-                .detach()
-                .numpy()[0]
+                self.drn.distributions(instance).quantiles([percentile]).item()
                 if percentile
                 else None
             )
