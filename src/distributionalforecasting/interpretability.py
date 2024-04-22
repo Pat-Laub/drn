@@ -938,8 +938,8 @@ class DRNExplainer:
 
         if plot_mean_adjustment:
             plt.ylim(bottom=0)
-            DP_glm = self.glm.mean(instance).detach().numpy()
-            DP_drn = self.drn.distributions(instance).mean.detach().numpy()
+            DP_glm = self.glm.mean(instance).item()
+            DP_drn = self.drn.distributions(instance).mean.item()
 
             axes.axvline(
                 DP_glm,
@@ -1518,7 +1518,13 @@ class DRNExplainer:
         """
         Convert data to a torch.Tensor if not already.
         """
-        return torch.Tensor(data) if not isinstance(data, torch.Tensor) else data
+        if isinstance(data, torch.Tensor):
+            return data
+        return torch.tensor(
+            np.asarray(data),
+            dtype=next(self.glm.parameters()).dtype,
+            device=next(self.glm.parameters()).device,
+        )
 
     def one_hot_encoder(self, instances):
         """
