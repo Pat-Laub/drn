@@ -77,10 +77,6 @@ class KernelSHAP_DRN:
                     self.explaining_data
                 )
 
-        # Set global matplotlib plotting style for label sizes.
-        plt.rcParams["xtick.labelsize"] = 30  # X-axis tick label size.
-        plt.rcParams["ytick.labelsize"] = 30  # Y-axis tick label size.
-
     def forward(self):
         """
         The raw Kernel SHAP (either adjusted or DRN) output.
@@ -351,10 +347,6 @@ class DRNExplainer:
         self.background_data_tensor = self._to_tensor(
             self.background_data_df
         )  # Convert the data to a PyTorch tensor.
-
-        # Set global matplotlib plotting style for label sizes.
-        plt.rcParams["xtick.labelsize"] = 35  # X-axis tick label size.
-        plt.rcParams["ytick.labelsize"] = 35  # Y-axis tick label size.
 
     def plot_dp_adjustment_shap(
         self,
