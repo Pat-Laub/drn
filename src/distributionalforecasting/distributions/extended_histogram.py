@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from typing import Optional
 from torch.distributions import Distribution
 
 from .histogram import Histogram
@@ -17,18 +18,21 @@ class ExtendedHistogram(Distribution):
         self,
         baseline: Distribution,
         cutpoints: torch.Tensor,
-        prob_masses: torch.Tensor,
+        pmf: torch.Tensor,
+        baseline_probs: Optional[torch.Tensor] = None,
     ):
         """
         Args:
             baseline: the original distribution
-            regions: the bin boundaries (shape: (K+1,))
-            prob_masses: the probability for landing in each regions (shape: (n, K))
+            cutpoints: the bin boundaries (shape: (K+1,))
+            pmf: the refined (cond.) probability for landing in each region (shape: (n, K))
+            baseline_probs: the baseline's probability for landing in each region (shape: (n, K))
         """
         self.baseline = baseline
-        self.prob_masses = prob_masses
         self.cutpoints = cutpoints
-        self.histogram = Histogram(cutpoints, prob_masses)
+        self.prob_masses = pmf
+        self.baseline_probs = baseline_probs
+        self.histogram = Histogram(cutpoints, pmf)
         self.scale_down_hist = baseline.cdf(cutpoints[-1]) - baseline.cdf(cutpoints[0])
 
         assert self.scale_down_hist.shape == torch.Size([self.histogram.batch_shape[0]])
@@ -41,13 +45,17 @@ class ExtendedHistogram(Distribution):
         """
         Calculate the baseline probability vector
         """
-        return self.baseline_prob_masses
+        if self.baseline_probs is None:
+            baseline_cdfs = self.baseline.cdf(self.cutpoints.unsqueeze(-1)).T
+            self.baseline_probs = torch.diff(baseline_cdfs, dim=1)
+
+        return self.baseline_probs
 
     def real_adjustments(self) -> torch.Tensor:
         """
         Calculate the real adjustment factors a_k's
         """
-        return self.real_adjustments
+        return self.prob_masses / self.baseline_prob_between_cutpoints()
 
     def prob(self, value: torch.Tensor) -> torch.Tensor:
         """

@@ -212,8 +212,8 @@ def test_drn():
     # Try both loss functions with their regularisation terms enabled
     df.train(
         drn,
-        lambda pred, y: df.drn_jbce_loss(
-            pred, y, kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
+        lambda pred, y: df.drn_loss(
+            pred, y, kind="jbce", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
         ),
         train_dataset,
         val_dataset,
@@ -221,8 +221,8 @@ def test_drn():
     )
     df.train(
         drn,
-        lambda pred, y: df.drn_nll_loss(
-            pred, y, kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
+        lambda pred, y: df.drn_loss(
+            pred, y, kind="nll", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
         ),
         train_dataset,
         val_dataset,
@@ -244,7 +244,7 @@ def test_torch():
     drn = df.DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
     df.train(
         drn,
-        df.drn_jbce_loss,
+        df.drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -268,7 +268,7 @@ def test_torch():
 
     df.train(
         drn,
-        df.drn_jbce_loss,
+        df.drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -285,7 +285,7 @@ def test_torch():
     )
     df.train(
         drn,
-        df.drn_jbce_loss,
+        df.drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -293,12 +293,12 @@ def test_torch():
 
     # Make sure two different predictions (which in drn.train mode) are different
     drn.train()
-    _, _, preds1 = drn(X_train)
-    _, _, preds2 = drn(X_train)
+    preds1 = drn(X_train)[-1]
+    preds2 = drn(X_train)[-1]
     assert not torch.allclose(preds1, preds2)
 
     # Make sure two different predictions (which in drn.eval mode) are the same
     drn.eval()
-    _, _, preds1 = drn(X_train)
-    _, _, preds2 = drn(X_train)
+    preds1 = drn(X_train)[-1]
+    preds2 = drn(X_train)[-1]
     assert torch.allclose(preds1, preds2)

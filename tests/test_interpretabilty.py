@@ -26,7 +26,7 @@ def test_plot_adjustment_factors():
     drn = df.DRN(X_train.shape[1], cutpoints, glm)
     df.train(
         drn,
-        df.drn_jbce_loss,
+        df.drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
