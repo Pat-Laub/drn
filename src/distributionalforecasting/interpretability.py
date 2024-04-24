@@ -402,6 +402,8 @@ class DRNExplainer:
             shap_fontsize, figsize, label_adjustment_factor: Plot styling parameters.
             legend_loc: Location of the legend in the plot.
         """
+        alpha = density_transparency
+
         # Prepare data for plotting: One-hot encode the input and convert to a tensor.
         print("f", instance_raw)
         instance = self._to_tensor(self.one_hot_encoder(instance_raw))
@@ -416,18 +418,18 @@ class DRNExplainer:
         lower_cutpoint = x_range[0] if x_range is not None else cutpoints[0]
         upper_cutpoint = x_range[1] if x_range is not None else cutpoints[-1]
         # Create a tensor of linearly spaced values between the lower and upper cutpoints.
-        lst_tensor = torch.linspace(
+        x_grid = torch.linspace(
             lower_cutpoint, upper_cutpoint, num_interpolations
         ).unsqueeze(-1)
 
         # Compute probability density functions (PDF) for GLM and DRN models.
         # GLM PDF is calculated from the log probabilities of the distribution.
         glm_pdf = np.exp(
-            (self.glm.distributions(instance).log_prob(lst_tensor)).detach().numpy()
+            (self.glm.distributions(instance).log_prob(x_grid)).detach().numpy()
         )
 
         # DRN PDF is calculated from the probabilities of the distribution.
-        drn_pdf = self.drn.distributions(instance).prob(lst_tensor).detach().numpy()
+        drn_pdf = self.drn.distributions(instance).prob(x_grid).detach().numpy()
 
         # Setup the plotting environment with specified figure size.
         figure, axes = plt.subplots(1, 1, figsize=figsize)
@@ -441,62 +443,28 @@ class DRNExplainer:
         x_min, x_max = 0, cutpoints[-1]
 
         # Find indices of cutpoints closest to the default cutpoints
-        index_of_closest_last = torch.argmin(
-            torch.abs(lst_tensor - upper_cutpoint)
-        ).item()
-        index_of_closest_first = torch.argmin(
-            torch.abs(lst_tensor - lower_cutpoint)
-        ).item()
+        index_right = torch.argmin(torch.abs(x_grid - upper_cutpoint)).item()
+        index_left = torch.argmin(torch.abs(x_grid - lower_cutpoint)).item()
 
         # Baseline Density Plotting
         if plot_baseline:
             plt.plot(
-                lst_tensor[index_of_closest_first:index_of_closest_last],
-                glm_pdf[index_of_closest_first:index_of_closest_last],
+                x_grid[index_left:index_right],
+                glm_pdf[index_left:index_right],
                 color="black",
                 linewidth=3,
-                label="Baseline Density",
-                alpha=density_transparency,
+                label="GLM",
+                alpha=alpha,
             )
 
-        drn_pdf_value = 0
-        # DRN Density Plotting
-        for i in range(index_of_closest_first, index_of_closest_last - 1):
-            start, end = lst_tensor[i], lst_tensor[i + 1]
-            grid_new = np.linspace(start, end, 3).flatten()
-            drn_pdf_value = drn_pdf[i]
-            # Plot the horizontal line with increased thickness
-            plt.plot(
-                grid_new,
-                np.full_like(grid_new, drn_pdf_value),
-                color="blue",
-                linewidth=3,
-                alpha=density_transparency,
-            )
-            # Draw vertical dashed lines between the jumps
-            if (
-                i < index_of_closest_last - 2
-            ):  # Check to avoid adding a vertical line at the end
-                plt.vlines(
-                    end,
-                    drn_pdf[i],
-                    drn_pdf[i + 1],
-                    color="blue",
-                    linewidth=2,
-                    linestyles="dashed",
-                    alpha=density_transparency,
-                )
-
-        # Add a label and plot DRN density if drn_pdf_value is greater than zero
-        if drn_pdf_value > 0:
-            plt.plot(
-                grid_new,
-                np.full_like(grid_new, drn_pdf_value),
-                color="blue",
-                linewidth=3,
-                label="DRN Density",
-                alpha=density_transparency,
-            )
+        plot_drn_density(
+            x_grid,
+            drn_pdf,
+            index_left,
+            index_right,
+            axes,
+            alpha,
+        )
 
         # Integrate SHAP explanations into the plot
         self.kernel_shap_plot(
@@ -544,7 +512,7 @@ class DRNExplainer:
                     label="True Density",
                     gridsize=3000,
                     linewidth=3,
-                    alpha=density_transparency,
+                    alpha=alpha,
                 )
 
         # Plot observed value if synthetic data is not available
@@ -562,17 +530,14 @@ class DRNExplainer:
         if other_df_models is not None:
             for idx, DF_model in enumerate(other_df_models):
                 current_pdf = np.exp(
-                    DF_model.distributions(instance)
-                    .log_prob(lst_tensor)
-                    .detach()
-                    .numpy()
+                    DF_model.distributions(instance).log_prob(x_grid).detach().numpy()
                 )
                 plt.plot(
-                    lst_tensor,
+                    x_grid,
                     current_pdf,
                     label=f"{model_names[idx]} Density",
                     color=str(0.5 + 0.5 * idx / len(other_df_models)),
-                    alpha=density_transparency,
+                    alpha=alpha,
                 )
 
         # Set axis labels, title, and legend
@@ -620,6 +585,7 @@ class DRNExplainer:
         Plot the adjustment factors for each of the partitioned interval.
         expand: interpolation of cutpoints for density evaluations.
         """
+        alpha = density_transparency
 
         # Default cutpoints and num_interpolations setup
         cutpoints = self.default_cutpoints if cutpoints is None else cutpoints
@@ -633,31 +599,25 @@ class DRNExplainer:
 
         # If we are plotting concerning quantiles
         if percentiles is not None:
-            lst_tensor = torch.linspace(
-                cutpoints[0], cutpoints[-1], num_interpolations
-            ).unsqueeze(-1)
-            print(lst_tensor[:5])
             cutpoints_label_bool = True
-            print(self.glm.quantiles(instance, percentiles).detach().numpy())
             cutpoints = (
                 self.glm.quantiles(instance, percentiles).detach().numpy().squeeze(1)
             )
 
             cutpoints[0] = cutpoints[0] + 1e-3
-            print(cutpoints)
 
         # Interpolation
         lower_cutpoint = x_range[0] if x_range is not None else cutpoints[0]
         upper_cutpoint = x_range[1] if x_range is not None else cutpoints[-1]
-        lst_tensor = torch.linspace(
+        x_grid = torch.linspace(
             lower_cutpoint, upper_cutpoint, num_interpolations
         ).unsqueeze(-1)
 
         # Calculate GLM and DRN PDFs
         glm_pdf = np.exp(
-            self.glm.distributions(instance).log_prob(lst_tensor).detach().numpy()
+            self.glm.distributions(instance).log_prob(x_grid).detach().numpy()
         )
-        drn_pdf = self.drn.distributions(instance).prob(lst_tensor).detach().numpy()
+        drn_pdf = self.drn.distributions(instance).prob(x_grid).detach().numpy()
 
         # Set up the plot
         if axes is not None and figsize is not None:
@@ -671,78 +631,41 @@ class DRNExplainer:
         x_min, x_max = cutpoints[0], cutpoints[-1]
 
         # Find indices of cutpoints closest to the default cutpoints
-        index_of_closest_last = torch.argmin(
-            torch.abs(lst_tensor - upper_cutpoint)
-        ).item()
-        index_of_closest_first = torch.argmin(
-            torch.abs(lst_tensor - lower_cutpoint)
-        ).item()
+        index_right = torch.argmin(torch.abs(x_grid - upper_cutpoint)).item()
+        index_left = torch.argmin(torch.abs(x_grid - lower_cutpoint)).item()
 
         # Baseline Density Plotting
-        plt.plot(lst_tensor, glm_pdf, color="blue", alpha=density_transparency)
+        plt.plot(x_grid, glm_pdf, color="blue", alpha=alpha)
         plt.plot(
-            lst_tensor[index_of_closest_first:index_of_closest_last],
-            glm_pdf[index_of_closest_first:index_of_closest_last],
+            x_grid[index_left:index_right],
+            glm_pdf[index_left:index_right],
             color="black",
             linewidth=2,
             label="GLM",
-            alpha=density_transparency,
+            alpha=alpha,
         )
 
-        drn_pdf_value = 0
-        # DRN Density Plotting
-        for i in range(index_of_closest_first, index_of_closest_last - 1):
-            start, end = lst_tensor[i], lst_tensor[i + 1]
-            grid_new = np.linspace(start, end, 3).flatten()
-            drn_pdf_value = drn_pdf[i]
-            # Plot the horizontal line with increased thickness
-            plt.plot(
-                grid_new,
-                np.full_like(grid_new, drn_pdf_value),
-                color="blue",
-                linewidth=2,
-                alpha=density_transparency,
-            )
-            # Draw vertical dashed lines between the jumps
-            if (
-                i < index_of_closest_last - 2
-            ):  # Check to avoid adding a vertical line at the end
-                plt.vlines(
-                    end,
-                    drn_pdf[i],
-                    drn_pdf[i + 1],
-                    color="blue",
-                    linewidth=1,
-                    linestyles="dotted",
-                    alpha=density_transparency,
-                )
-
-        # Add the label
-        if drn_pdf_value > 0:
-            plt.plot(
-                grid_new,
-                np.full_like(grid_new, drn_pdf_value),
-                color="blue",
-                linewidth=2,
-                label="DRN",
-                alpha=density_transparency,
-            )
+        plot_drn_density(
+            x_grid,
+            drn_pdf,
+            index_left,
+            index_right,
+            axes,
+            alpha,
+        )
 
         # Other DF Models Plotting
         if other_df_models is not None:
             for idx, DF_model in enumerate(other_df_models):
                 current_pdf = np.exp(
-                    DF_model.distributions(instance)
-                    .log_prob(lst_tensor)
-                    .detach()
-                    .numpy()
+                    DF_model.distributions(instance).log_prob(x_grid).detach().numpy()
                 )
                 plt.plot(
-                    lst_tensor,
+                    x_grid,
                     current_pdf,
                     label=f"{model_names[idx]} Density",
                     color=str(0.5 + 0.5 * idx / len(other_df_models)),
-                    alpha=density_transparency,
+                    alpha=alpha,
                 )
 
         if plot_adjustments_labels:
@@ -759,8 +682,8 @@ class DRNExplainer:
                         )
                         plt.axvline(c_0, ls="--", color="black", alpha=0.5)
                     elif (
-                        cutpoints[i] >= lst_tensor[index_of_closest_first]
-                        and cutpoints[i] <= lst_tensor[index_of_closest_last]
+                        cutpoints[i] >= x_grid[index_left]
+                        and cutpoints[i] <= x_grid[index_right]
                     ):
                         plt.text(
                             cutpoints[i],
@@ -934,7 +857,7 @@ class DRNExplainer:
                 density(x),
                 color="red",
                 linewidth=2,
-                alpha=density_transparency,
+                alpha=alpha,
                 label="True (KDE)",
             )
 
@@ -1023,6 +946,7 @@ class DRNExplainer:
         """
         Plot the cumulative distribution function.
         """
+        alpha = density_transparency
 
         # Default cutpoints and num_interpolations setup
         cutpoints = self.default_cutpoints if cutpoints is None else cutpoints
@@ -1076,7 +1000,7 @@ class DRNExplainer:
                     current_cdf,
                     label=f"{model_names[idx]} CDF",
                     color=str(0.5 + 0.5 * idx / len(other_df_models)),
-                    alpha=density_transparency,
+                    alpha=alpha,
                 )
 
         # cdfs_mdn = mdn.distributions(torch.Tensor([0.5, 0.5]).reshape(1,2)).cdf(grid).detach().numpy()
@@ -1710,3 +1634,31 @@ class DRNExplainer:
             raise ValueError("Invalid distributional property! What Are We Explaining?")
 
         return value_function
+
+
+def plot_drn_density(
+    x_grid,
+    drn_pdf,
+    index_left,
+    index_right,
+    axes,
+    alpha=1.0,
+):
+    for i in range(index_left, index_right - 1):
+        # Plot the horizontal line with increased thickness
+        xs = x_grid[i : i + 2]
+        ys = np.full_like(xs, drn_pdf[i])
+        lab = "DRN" if i == index_left else None
+
+        axes.plot(xs, ys, color="blue", linewidth=2, alpha=alpha, label=lab)
+
+        # Draw vertical dashed lines between the jumps
+        if i < index_right - 2:  # Check to avoid adding a vertical line at the end
+            axes.vlines(
+                xs[-1],
+                drn_pdf[i],
+                drn_pdf[i + 1],
+                color="blue",
+                linestyles="dotted",
+                alpha=alpha,
+            )
