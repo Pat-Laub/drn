@@ -156,10 +156,11 @@ def drn_loss(pred, y, kind="jbce", kl_alpha=0, mean_alpha=0, tv_alpha=0, dv_alph
     else:
         losses = nll_loss(dists, y)
 
+    a_i = dists.real_adjustments()
+    b_i = baseline_probs
+
     if kl_alpha > 0:
         epsilon = 1e-30
-        a_i = dists.real_adjustments()
-        b_i = baseline_probs
         kl = -(torch.log(a_i + epsilon) * b_i)
         losses += torch.mean(torch.sum(kl, axis=0)) * kl_alpha
 
@@ -167,7 +168,7 @@ def drn_loss(pred, y, kind="jbce", kl_alpha=0, mean_alpha=0, tv_alpha=0, dv_alph
         losses += torch.mean((baseline_dists.mean - dists.mean) ** 2) * mean_alpha
 
     if tv_alpha > 0 or dv_alpha > 0:
-        drn_density = drn_pmf / torch.diff(cutpoints)
+        drn_density = a_i * b_i / torch.diff(cutpoints)
         first_diffs = torch.diff(drn_density, dim=1)
 
         if tv_alpha > 0:
