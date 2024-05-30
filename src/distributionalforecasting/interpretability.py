@@ -61,7 +61,7 @@ class KernelSHAP_DRN:
                 ),
             )
             self.shap_values_kernel = kernel_shap_explainer(
-                self.explaining_data, l1_reg=0.0
+                self.explaining_data,
             )
             self.shap_base_values = self.shap_values_kernel.base_values
             self.shap_values = self.shap_values_kernel.values
@@ -76,7 +76,7 @@ class KernelSHAP_DRN:
                     ),
                 )
                 self.shap_values_kernel_glm = kernel_shap_explainer_glm(
-                    self.explaining_data, l1_reg=0.0
+                    self.explaining_data,
                 )
 
     def forward(self):

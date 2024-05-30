@@ -147,7 +147,16 @@ def jbce_loss(dists, y, alpha=0.0):
     return torch.mean(losses)
 
 
-def drn_loss(pred, y, kind="jbce", kl_alpha=0, mean_alpha=0, tv_alpha=0, dv_alpha=0):
+def drn_loss(
+    pred,
+    y,
+    kind="jbce",
+    kl_alpha=0,
+    mean_alpha=0,
+    tv_alpha=0,
+    dv_alpha=0,
+    kl_direction="forwards",
+):
     baseline_dists, cutpoints, baseline_probs, drn_pmf = pred
     dists = ExtendedHistogram(baseline_dists, cutpoints, drn_pmf, baseline_probs)
 
@@ -161,7 +170,10 @@ def drn_loss(pred, y, kind="jbce", kl_alpha=0, mean_alpha=0, tv_alpha=0, dv_alph
 
     if kl_alpha > 0:
         epsilon = 1e-30
-        kl = -(torch.log(a_i + epsilon) * b_i)
+        if kl_direction == "forwards":
+            kl = -(torch.log(a_i + epsilon) * b_i)
+        else:
+            kl = torch.log(a_i + epsilon) * a_i * b_i
         losses += torch.mean(torch.sum(kl, axis=0)) * kl_alpha
 
     if mean_alpha > 0:
