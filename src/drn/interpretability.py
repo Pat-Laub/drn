@@ -31,6 +31,7 @@ class KernelSHAP_DRN:
         value_function,
         glm_value_function,
         other_shap_values=None,
+        random_state=42,
     ):
         """
         Args:
@@ -54,10 +55,13 @@ class KernelSHAP_DRN:
 
         if self.other_shap_values is None:
             # Compute SHAP values for the DRN network
+            np.random.seed(random_state)
             kernel_shap_explainer = shap.KernelExplainer(
                 self.value_function,
                 shap.sample(
-                    self.background_data_df_before_one_hot, nsamples=sample_size
+                    self.background_data_df_before_one_hot,
+                    nsamples=sample_size,
+                    random_state=random_state,
                 ),
             )
             self.shap_values_kernel = kernel_shap_explainer(
@@ -67,12 +71,15 @@ class KernelSHAP_DRN:
             self.shap_values = self.shap_values_kernel.values
 
             # Compute SHAP values for the GLM if required
+            np.random.seed(random_state)
             self.glm_value_function = glm_value_function
             if self.glm_value_function is not None:
                 kernel_shap_explainer_glm = shap.KernelExplainer(
                     self.glm_value_function,
                     shap.sample(
-                        self.background_data_df_before_one_hot, nsamples=sample_size
+                        self.background_data_df_before_one_hot,
+                        nsamples=sample_size,
+                        random_state=random_state,
                     ),
                 )
                 self.shap_values_kernel_glm = kernel_shap_explainer_glm(
@@ -372,10 +379,9 @@ class DRNExplainer:
         y_range: tuple = None,
         plot_y_label: str = None,
         plot_title: str = None,
+        figsize=None,
         density_transparency: float = 1.0,
         shap_fontsize: int = 25,
-        figsize: tuple = (20, 15),
-        label_adjustment_factor: float = 1.0,
         legend_loc: str = "upper left",
     ):
         """
@@ -433,6 +439,12 @@ class DRNExplainer:
 
         # Setup the plotting environment with specified figure size.
         figure, axes = plt.subplots(1, 1, figsize=figsize)
+        if axes is not None and figsize is not None:
+            axes.figure.set_size_inches(figsize)
+        if axes is None:
+            _, axes = plt.subplots(1, 1, figsize=figsize)
+
+        plt.sca(axes)
 
         # Calculate the maximum Y-axis value for the plot
         y_max = 1.25 * max(drn_pdf.max(), glm_pdf[1:].max())
@@ -541,19 +553,18 @@ class DRNExplainer:
                 )
 
         # Set axis labels, title, and legend
-        plt.xlabel("Y", fontsize=42)
+        plt.xlabel("Y")
         plt.gca().set_ylabel("")
         if plot_y_label is not None:
-            plt.ylabel(plot_y_label, fontsize=42 * label_adjustment_factor)
+            plt.ylabel(plot_y_label)
         if plot_title is not None:
-            plt.title(plot_title, fontsize=48 * label_adjustment_factor)
+            plt.title(plot_title)
         else:
             plt.title(
                 f'{dist_property} {"Adjustment" if adjustment else "Explanation"}',
-                fontsize=48 * label_adjustment_factor,
             )
 
-        plt.legend(prop={"size": 32 * (label_adjustment_factor - 0.2)}, loc=legend_loc)
+        plt.legend(loc=legend_loc)
 
         # Set plot ranges
         if x_range is not None:
@@ -940,8 +951,7 @@ class DRNExplainer:
         top_K_features=3,
         y_range=None,
         shap_fontsize=25,
-        figsize=(20, 15),
-        label_adjustment_factor=1.0,
+        figsize=None,
     ):
         """
         Plot the cumulative distribution function.
@@ -971,6 +981,12 @@ class DRNExplainer:
 
         # Plotting
         figure, axes = plt.subplots(1, 1, figsize=figsize)
+        if axes is not None and figsize is not None:
+            axes.figure.set_size_inches(figsize)
+        if axes is None:
+            _, axes = plt.subplots(1, 1, figsize=figsize)
+
+        plt.sca(axes)
 
         y_min = y_range[0] if y_range is not None else 1.0
         y_max = y_range[1] if y_range is not None else 0.0
@@ -1041,16 +1057,16 @@ class DRNExplainer:
         axes.set_xlim(max(0, x_min), x_max)
         if y_range is not None:
             axes.set_ylim(y_range[0], y_range[1])
-        plt.xlabel("$y$", fontsize=42 * label_adjustment_factor)
-        plt.ylabel("Cumulative Probability", fontsize=32 * label_adjustment_factor)
+        plt.xlabel("$Y$")
+        plt.ylabel("Cumulative Probability")
 
         plt.gca().set_ylabel("")
         if plot_title is not None:
             title_name = plot_title
-            plt.title(title_name, fontsize=48 * label_adjustment_factor)
+            plt.title(title_name)
 
         # plt.title('Cumulative Distribution Functions (CDFs)', fontsize = 36)
-        plt.legend(prop={"size": 32 * (label_adjustment_factor - 0.15)})
+        plt.legend()
 
     def kernel_shap_plot(
         self,
