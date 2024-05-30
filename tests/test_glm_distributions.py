@@ -2,14 +2,14 @@ import os
 import torch
 from synthetic_dataset import generate_synthetic_data
 
-import distributionalforecasting as df
+from drn import *
 
 
 def test_glm_mean():
     X_train, Y_train, _, _ = generate_synthetic_data()
 
     torch.manual_seed(1)
-    glm = df.GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(X_train.shape[1], distribution="gamma")
 
     # Either we call 'train' to move to same device as 'X_train', or do it manually
     glm = glm.to(X_train.device)
@@ -25,11 +25,11 @@ def test_glm_save_load():
     X_train, Y_train, _, _ = generate_synthetic_data()
 
     torch.manual_seed(1)
-    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
     torch.save(glm.state_dict(), "glm.pt")
 
-    glm_load = df.GLM(X_train.shape[1], distribution="gamma").to(X_train.device)
+    glm_load = GLM(X_train.shape[1], distribution="gamma").to(X_train.device)
     glm_load.load_state_dict(torch.load("glm.pt"))
 
     os.remove("glm.pt")

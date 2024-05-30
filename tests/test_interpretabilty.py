@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from synthetic_dataset import generate_synthetic_data
 
-import distributionalforecasting as df
+from drn import *
 
 
 def test_plot_adjustment_factors():
@@ -19,20 +19,20 @@ def test_plot_adjustment_factors():
         columns=[f"X_{i}" for i in range(X_train.shape[1])],
     )
 
-    cutpoints = df.drn_cutpoints(0, 1, 0.1, y_train, 2)
+    cutpoints = drn_cutpoints(0, 1, 0.1, y_train, 2)
 
-    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
-    drn = df.DRN(X_train.shape[1], cutpoints, glm)
-    df.train(
+    drn = DRN(X_train.shape[1], cutpoints, glm)
+    train(
         drn,
-        df.drn_loss,
+        drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
     )
 
-    drn_explainer = df.DRNExplainer(
+    drn_explainer = DRNExplainer(
         drn,
         glm,
         cutpoints,

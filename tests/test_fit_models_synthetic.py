@@ -11,7 +11,7 @@ import statsmodels.api as sm
 from statsmodels.genmod.families import Gamma
 from synthetic_dataset import generate_synthetic_data
 
-import distributionalforecasting as df
+from drn import *
 
 
 def check_crps(model, X_train, Y_train, grid_size=3000):
@@ -20,9 +20,9 @@ def check_crps(model, X_train, Y_train, grid_size=3000):
     dists = model.distributions(X_train)
     cdfs = dists.cdf(grid)
     grid = grid.squeeze()
-    crps = df.crps(Y_train, grid, cdfs)
-    assert crps.shape == Y_train.shape
-    assert crps.mean() > 0
+    crps_ = crps(Y_train, grid, cdfs)
+    assert crps_.shape == Y_train.shape
+    assert crps_.mean() > 0
 
 
 def test_glm():
@@ -30,11 +30,11 @@ def test_glm():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
 
     torch.manual_seed(1)
-    glm = df.GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(X_train.shape[1], distribution="gamma")
 
-    df.train(
+    train(
         glm,
-        df.gamma_deviance_loss,
+        gamma_deviance_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -50,16 +50,16 @@ def test_glm_from_statsmodels():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
 
     # Construct GLM given training data in torch tensors
-    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
-    our_dispersion = df.gamma_estimate_dispersion(
+    our_dispersion = gamma_estimate_dispersion(
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
 
     assert np.isclose(our_dispersion, glm.dispersion.item())
 
     # Construct GLM given training data in numpy arrays
-    glm = df.GLM.from_statsmodels(
+    glm = GLM.from_statsmodels(
         X_train.detach().cpu().numpy(),
         Y_train.detach().cpu().numpy(),
         distribution="gamma",
@@ -67,7 +67,7 @@ def test_glm_from_statsmodels():
     glm = glm.to(
         X_train.device
     )  # since 'from_statsmodels' didn't know this information
-    our_dispersion = df.gamma_estimate_dispersion(
+    our_dispersion = gamma_estimate_dispersion(
         glm.forward(X_train), Y_train, X_train.shape[1]
     )
 
@@ -79,9 +79,9 @@ def test_glm_from_statsmodels():
         columns=[f"X_{i}" for i in range(X_train.shape[1])],
     )
     y_ser = pd.Series(Y_train.detach().cpu().numpy(), name="Y")
-    glm = df.GLM.from_statsmodels(X_df, y_ser, distribution="gaussian")
+    glm = GLM.from_statsmodels(X_df, y_ser, distribution="gaussian")
 
-    # Check that pandas objects from df.split_and_preprocess
+    # Check that pandas objects from split_and_preprocess
     (
         x_train,
         x_val,
@@ -96,11 +96,11 @@ def test_glm_from_statsmodels():
         cat_features,
         all_categories,
         ct,
-    ) = df.split_and_preprocess(
+    ) = split_and_preprocess(
         X_df, y_ser, ["X_0", "X_1", "X_2", "X_3"], [], seed=42, num_standard=True
     )
 
-    glm = df.GLM.from_statsmodels(x_train, y_train, distribution="gamma")
+    glm = GLM.from_statsmodels(x_train, y_train, distribution="gamma")
     glm = glm.to(X_train.device)
 
     # Check that statsmodels predictions are just the same as ours
@@ -122,19 +122,19 @@ def test_cann():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
 
     torch.manual_seed(2)
-    glm = df.GLM(X_train.shape[1], distribution="gamma")
-    df.train(
+    glm = GLM(X_train.shape[1], distribution="gamma")
+    train(
         glm,
-        df.gamma_deviance_loss,
+        gamma_deviance_loss,
         train_dataset,
         val_dataset,
         epochs=2,
     )
 
-    cann = df.CANN(glm, num_hidden_layers=2, hidden_size=100)
-    df.train(
+    cann = CANN(glm, num_hidden_layers=2, hidden_size=100)
+    train(
         cann,
-        df.gamma_deviance_loss,
+        gamma_deviance_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -150,10 +150,10 @@ def test_mdn():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
 
     torch.manual_seed(3)
-    mdn = df.MDN(X_train.shape[1], num_components=5, distribution="gamma")
-    df.train(
+    mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma")
+    train(
         mdn,
-        df.gamma_mdn_loss,
+        gamma_mdn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -181,8 +181,8 @@ def test_ddr():
     cutpoints_ddr = setup_cutpoints(Y_train)
 
     torch.manual_seed(4)
-    ddr = df.DDR(X_train.shape[1], cutpoints_ddr, hidden_size=100)
-    df.train(ddr, df.ddr_loss, train_dataset, val_dataset, epochs=2)
+    ddr = DDR(X_train.shape[1], cutpoints_ddr, hidden_size=100)
+    train(ddr, ddr_loss, train_dataset, val_dataset, epochs=2)
 
     check_crps(ddr, X_train, Y_train)
 
@@ -193,35 +193,35 @@ def test_drn():
     y_train = Y_train.cpu().numpy()
 
     cutpoints_ddr = setup_cutpoints(Y_train)
-    cutpoints_drn = df.merge_cutpoints(cutpoints_ddr, y_train, min_obs=2)
+    cutpoints_drn = merge_cutpoints(cutpoints_ddr, y_train, min_obs=2)
     assert len(cutpoints_drn) >= 2
 
     torch.manual_seed(5)
-    glm = df.GLM(X_train.shape[1], distribution="gamma")
-    df.train(
+    glm = GLM(X_train.shape[1], distribution="gamma")
+    train(
         glm,
-        df.gamma_deviance_loss,
+        gamma_deviance_loss,
         train_dataset,
         val_dataset,
         epochs=2,
     )
     glm.update_dispersion(X_train, Y_train)
 
-    drn = df.DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
+    drn = DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
 
     # Try both loss functions with their regularisation terms enabled
-    df.train(
+    train(
         drn,
-        lambda pred, y: df.drn_loss(
+        lambda pred, y: drn_loss(
             pred, y, kind="jbce", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
         ),
         train_dataset,
         val_dataset,
         epochs=2,
     )
-    df.train(
+    train(
         drn,
-        lambda pred, y: df.drn_loss(
+        lambda pred, y: drn_loss(
             pred, y, kind="nll", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
         ),
         train_dataset,
@@ -238,13 +238,13 @@ def test_torch():
     cutpoints = setup_cutpoints(Y_train)
 
     torch.manual_seed(5)
-    glm = df.GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
     hs = 5
-    drn = df.DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
-    df.train(
+    drn = DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
+    train(
         drn,
-        df.drn_loss,
+        drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
@@ -256,7 +256,7 @@ def test_torch():
     assert num_weights == expected_num_weights
 
     # Try again using np.int64 instead of ints for the hyperparameters
-    drn = df.DRN(
+    drn = DRN(
         X_train.shape[1],
         cutpoints,
         glm,
@@ -266,16 +266,16 @@ def test_torch():
     num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
     assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
 
-    df.train(
+    train(
         drn,
-        df.drn_loss,
+        drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,
     )
 
     # Check dropout is working as intended
-    drn = df.DRN(
+    drn = DRN(
         X_train.shape[1],
         cutpoints,
         glm,
@@ -283,9 +283,9 @@ def test_torch():
         hidden_size=hs,
         dropout_rate=0.5,
     )
-    df.train(
+    train(
         drn,
-        df.drn_loss,
+        drn_loss,
         train_dataset,
         val_dataset,
         epochs=2,

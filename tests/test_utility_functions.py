@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import pytest
-import distributionalforecasting as df
+from drn import *
 from synthetic_dataset import generate_synthetic_data
 
 
@@ -26,7 +26,7 @@ from synthetic_dataset import generate_synthetic_data
     ],
 )
 def test_merge_cutpoints(L_Raw, data_train, M, expected):
-    assert df.merge_cutpoints(L_Raw, data_train, M) == expected
+    assert merge_cutpoints(L_Raw, data_train, M) == expected
 
 
 def test_split_preprocess():
@@ -40,7 +40,7 @@ def test_split_preprocess():
     )
     y_ser = pd.Series(Y_train.detach().cpu().numpy(), name="Y")
 
-    # Check that pandas objects from df.split_and_preprocess
+    # Check that pandas objects from split_and_preprocess
     (
         x_train,
         x_val,
@@ -55,6 +55,6 @@ def test_split_preprocess():
         cat_features,
         all_categories,
         ct,
-    ) = df.split_and_preprocess(
+    ) = split_and_preprocess(
         X_df, y_ser, ["X_0", "X_1", "X_2", "X_3"], [], seed=42, num_standard=True
     )
