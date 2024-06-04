@@ -1052,9 +1052,9 @@ class DRNExplainer:
             ]
             plt.plot(grid, cdf_empirical, label="True CDF", color="orange", linewidth=3)
 
-        x_min = lower_cutpoint if x_range is not None else x_min
-        x_max = upper_cutpoint if x_range is not None else x_max
-        axes.set_xlim(max(0, x_min), x_max)
+        x_min = x_range[0] if x_range is not None else x_min
+        x_max = x_range[1] if x_range is not None else x_max
+        axes.set_xlim(x_min, x_max)
         if y_range is not None:
             axes.set_ylim(y_range[0], y_range[1])
         plt.xlabel("$Y$")

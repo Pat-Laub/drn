@@ -202,8 +202,10 @@ class ExtendedHistogram(Distribution):
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
         l = torch.Tensor(
-            [0]
-        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
+            self.cutpoints[0] - (self.cutpoints[-1] - self.cutpoints[0])
+            if l is None
+            else l
+        )
         u = (
             self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
             if u is None
