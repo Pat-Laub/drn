@@ -52,7 +52,7 @@ These metrics enable a comprehensive assessment of the model's performance acros
 
 - **Reasonable Distributional Interpretability with Integrated Kernel SHAP Analysis**: 
 The recommended baseline model for DRN is a GLM due to its inherent interpretability, as discussed in the [DRN paper](https://arxiv.org/abs/2406.00998). 
-Additional, DRN integrates interpretability techniques like SHAP, allowing users to see detailed decomposition of contributions from both the baseline model and the DRN across various distributional properties beyond the mean. 
+Additionally, DRN integrates interpretability techniques like SHAP, allowing users to analyse detailed decomposition of contributions from both the baseline model and the DRN across various distributional properties beyond the mean. 
 Users can generate plots for both density and CDF for the baseline and refined models. 
 Kernel SHAP analysis is embedded within these plots, providing customised post-hoc interpretability and aiding in understanding the model's adjustments of key distributional properties beyond the mean.
 
