@@ -361,6 +361,7 @@ class DRNExplainer:
         self,
         instance_raw: pd.DataFrame,
         dist_property: str = "Mean",
+        quantile_bounds: tuple = None,
         method: str = "Kernel",
         nsamples_background_fraction: float = 1.0,
         top_K_features: int = 3,
@@ -483,6 +484,7 @@ class DRNExplainer:
             instance_raw=instance_raw,
             instance=instance,
             dist_property=dist_property,
+            quantile_bounds=quantile_bounds,
             method=method,
             nsamples_background_fraction=nsamples_background_fraction,
             adjustment=adjustment,
@@ -944,6 +946,7 @@ class DRNExplainer:
         plot_baseline=True,
         density_transparency=1.0,
         dist_property="Mean",
+        quantile_bounds=None,
         nsamples_background_fraction=0.1,
         adjustment=True,
         method="Kernel",
@@ -994,6 +997,7 @@ class DRNExplainer:
             instance_raw=instance_raw,
             instance=instance,
             dist_property=dist_property,
+            quantile_bounds=quantile_bounds,
             method=method,
             nsamples_background_fraction=nsamples_background_fraction,
             adjustment=adjustment,
@@ -1073,6 +1077,7 @@ class DRNExplainer:
         instance_raw: pd.DataFrame,
         instance: torch.Tensor,
         dist_property: str,
+        quantile_bounds: None,
         method="Kernel",
         nsamples_background_fraction: float = 1.0,
         adjustment: bool = True,
@@ -1111,7 +1116,7 @@ class DRNExplainer:
 
             # Calculate distributional property values
             DP_glm, DP_drn = self._compute_distributional_properties(
-                instance, dist_property, adjustment
+                instance, dist_property, adjustment, quantile_bounds
             )
         else:
             # Placeholder for extending method functionality
@@ -1256,7 +1261,9 @@ class DRNExplainer:
 
         return (x_min, x_max)
 
-    def _compute_distributional_properties(self, instance, dist_property, adjustment):
+    def _compute_distributional_properties(
+        self, instance, dist_property, adjustment, quantile_bounds
+    ):
         """
         Computes the specified distributional properties for both GLM and DRN models.
         """
@@ -1274,16 +1281,35 @@ class DRNExplainer:
                 if re.search(r"(\d+)% Quantile", dist_property)
                 else None
             )
-            DP_glm = (
-                self.glm.quantiles(instance, [percentile]).item()
-                if percentile and adjustment
-                else 0
-            )
-            DP_drn = (
-                self.drn.distributions(instance).quantiles([percentile]).item()
-                if percentile
-                else None
-            )
+            if quantile_bounds is not None:
+                DP_glm = (
+                    self.glm.quantiles(
+                        instance,
+                        [percentile],
+                        l=quantile_bounds[0],
+                        u=quantile_bounds[1],
+                    ).item()
+                    if percentile and adjustment
+                    else 0
+                )
+                DP_drn = (
+                    self.drn.distributions(instance)
+                    .quantiles([percentile], l=quantile_bounds[0], u=quantile_bounds[1])
+                    .item()
+                    if percentile
+                    else None
+                )
+            else:
+                DP_glm = (
+                    self.glm.quantiles(instance, [percentile]).item()
+                    if percentile and adjustment
+                    else 0
+                )
+                DP_drn = (
+                    self.drn.distributions(instance).quantiles([percentile]).item()
+                    if percentile
+                    else None
+                )
         return float(DP_glm), float(DP_drn)
 
     def empirical_cdf(self, samples, x):
