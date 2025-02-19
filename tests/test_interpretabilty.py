@@ -74,5 +74,4 @@ def test_plot_adjustment_factors():
         shap_fontsize=40,
         plot_title="90% Quantile Adjustment Explanation",
         figsize=(20, 20),
-        label_adjustment_factor=1.3,
     )

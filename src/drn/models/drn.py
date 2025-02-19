@@ -193,9 +193,12 @@ def drn_loss(
     return losses
 
 
-def uniform_cutpoints(c_0, c_K, p, y):
-    num_cutpoints = int(np.ceil(p * len(y)))
-    return list(np.linspace(c_0, c_K, num_cutpoints))
+def uniform_cutpoints(c_0, c_K, p=None, y=None, num_cutpoints=None):
+    if p is not None:
+        num_cutpoints = int(np.ceil(p * len(y)))
+        return list(np.linspace(c_0, c_K, num_cutpoints))
+    else:
+        return list(np.linspace(c_0, c_K, num_cutpoints))
 
 
 def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list[float]:
@@ -219,6 +222,10 @@ def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list
     return new_cutpoints
 
 
-def drn_cutpoints(c_0, c_K, p, y, min_obs):
-    cutpoints = uniform_cutpoints(c_0, c_K, p, y)
+def drn_cutpoints(c_0, c_K, p=None, y=None, min_obs=1, num_cutpoints=int(100)):
+    if y is None:
+        raise ValueError(
+            "The argument 'y' cannot be None. It must be a numpy array of target values."
+        )
+    cutpoints = uniform_cutpoints(c_0, c_K, p, y, num_cutpoints)
     return merge_cutpoints(cutpoints, y, min_obs)

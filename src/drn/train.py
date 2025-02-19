@@ -1,6 +1,7 @@
 import copy
 from typing import Callable, List, Union
 
+import numpy as np
 import pandas as pd
 
 from sklearn.compose import ColumnTransformer
@@ -11,6 +12,9 @@ import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
 
+from .models import drn_cutpoints
+from .models import GLM
+from .models import DRN
 
 # Define Criterion type hint
 Criterion = Union[
@@ -20,26 +24,48 @@ Criterion = Union[
 
 
 def train(
-    model: nn.Module,
-    criterion: Criterion,
-    train_dataset: torch.utils.data.Dataset,
-    val_dataset: torch.utils.data.Dataset,
+    model: nn.Module = None,
+    criterion: Criterion = None,
+    train_dataset: torch.utils.data.Dataset = None,
+    val_dataset: torch.utils.data.Dataset = None,
     epochs=1000,
-    patience=50,
-    lr=0.0005,
+    patience=30,
+    lr=0.001,
     device=None,
-    log_interval=50,
+    log_interval=10,
     batch_size=None,
     optimizer=torch.optim.Adam,
     print_details=True,
     keep_best=True,
     gradient_clipping=False,
+    num_hidden_layers=2,
+    hidden_size=128,
+    dropout_rate=0.2,
+    baseline=None,
+    cutpoints=None,
 ) -> None:
     """
     A generic training function given a model and a criterion & optimizer.
     """
+    return_model = False
+    if model is None:
+        return_model = True
+        # Extract input features (X_train) and target (y_train) from the training dataset
+        X_train = train_dataset.tensors[0]
+
+        # Initialize the DRN model
+        torch.manual_seed(23)
+        model = DRN(
+            num_features=X_train.shape[1],
+            cutpoints=cutpoints,
+            glm=baseline,
+            num_hidden_layers=num_hidden_layers,
+            hidden_size=hidden_size,
+            dropout_rate=dropout_rate,
+        )
+
     if batch_size is None:
-        batch_size = len(train_dataset)  # type: ignore
+        batch_size = 128  # type: ignore
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=len(val_dataset))  # type: ignore
 
@@ -129,6 +155,8 @@ def train(
 
         # Make sure dropout is always disabled after training
         model.eval()
+
+        return model
 
 
 def split_and_preprocess(

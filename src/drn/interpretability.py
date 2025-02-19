@@ -577,6 +577,7 @@ class DRNExplainer:
     def plot_adjustment_factors(
         self,
         instance,
+        observation=None,
         cutpoints=None,
         num_interpolations=None,
         other_df_models=None,
@@ -903,6 +904,16 @@ class DRNExplainer:
                 alpha=0.9,
                 linewidth=4,
                 label=f"True Mean:\n {round(float(np.mean(y)))}",
+                color="red",
+            )
+
+        if observation is not None and synthetic_data is None:
+            axes.axvline(
+                observation,
+                ls="dashed",
+                alpha=0.75,
+                linewidth=4,
+                label=f"Observation:\n{round(float(observation), 3)}",
                 color="red",
             )
 
