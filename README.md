@@ -62,24 +62,7 @@ Kernel SHAP analysis is embedded within these plots, providing customised post-h
 To install the DRN package, simply run:
 
 ```sh
-pip install git+https://github.com/EricTianDong/drn.git
-```
-
-If you wish to use the same environment as in the [DRN paper](https://arxiv.org/abs/2406.00998), follow these steps before installation:
-
-1. **Clone the repository:**
-```sh
-   git clone https://github.com/EricTianDong/drn.git
-   cd drn
-```
-2. **Create the Conda environment:**
-```sh
-conda env create -f environment.yml
-```
-
-3. **Activate the Conda environment:**
-```sh
-conda activate ai
+pip install drn
 ```
 
 ## Example: Train a DRN
