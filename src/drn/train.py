@@ -149,8 +149,12 @@ def train(
                 break
 
     finally:
+        # If we never improved the loss, throw an error.
+        if best_loss == float("inf"):
+            raise ValueError("Training failed.")
+        
         if keep_best:
-            # Load the best model found during training
+            # If requested, return tbe best model found during training.
             model.load_state_dict(best_model)
 
         # Make sure dropout is always disabled after training
