@@ -104,8 +104,16 @@ def nll_loss(dists, y, alpha=0.0):
     return torch.mean(losses)
 
 
-def ddr_cutpoints(c_0, c_K, p, y):
-    num_cutpoints = int(np.ceil(p * len(y)))
+def ddr_cutpoints(c_0: float, c_K: float, proportion: float, n: int) -> list[float]:
+    """
+    Generate cutpoints for the DDR model.
+    Args:
+        c_0: The minimum cutpoint.
+        c_K: The maximum cutpoint.
+        proportion: Number of cutpoints is this proportion of the training set size.
+        n: The number of training observations.
+    """
+    num_cutpoints = int(np.ceil(proportion * n))
     cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
 
     return cutpoints

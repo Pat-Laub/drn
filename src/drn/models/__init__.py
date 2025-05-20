@@ -12,7 +12,6 @@ from .ddr import DDR, jbce_loss, ddr_loss, nll_loss, ddr_cutpoints
 from .drn import (
     DRN,
     drn_loss,
-    uniform_cutpoints,
     merge_cutpoints,
     drn_cutpoints,
 )
@@ -32,7 +31,6 @@ __all__ = (
     + [
         "DRN",
         "drn_loss",
-        "uniform_cutpoints",
         "merge_cutpoints",
         "drn_cutpoints",
     ]

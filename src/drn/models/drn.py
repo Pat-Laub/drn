@@ -193,14 +193,6 @@ def drn_loss(
     return losses
 
 
-def uniform_cutpoints(c_0, c_K, p=None, y=None, num_cutpoints=None):
-    if p is not None:
-        num_cutpoints = int(np.ceil(p * len(y)))
-        return list(np.linspace(c_0, c_K, num_cutpoints))
-    else:
-        return list(np.linspace(c_0, c_K, num_cutpoints))
-
-
 def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list[float]:
     # Ensure cutpoints are sorted and unique to start with
     cutpoints = sorted(list(np.unique(cutpoints)))
@@ -222,10 +214,15 @@ def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list
     return new_cutpoints
 
 
-def drn_cutpoints(c_0, c_K, p=None, y=None, min_obs=1, num_cutpoints=int(100)):
-    if y is None:
+def drn_cutpoints(c_0, c_K, y, proportion=None, num_cutpoints=None, min_obs=1):
+    if proportion is None and num_cutpoints is None:
         raise ValueError(
-            "The argument 'y' cannot be None. It must be a numpy array of target values."
+            "Either a proportion p or a specific num_cutpoints must be provided."
         )
-    cutpoints = uniform_cutpoints(c_0, c_K, p, y, num_cutpoints)
-    return merge_cutpoints(cutpoints, y, min_obs)
+
+    if proportion is not None:
+        num_cutpoints = int(np.ceil(proportion * len(y)))
+
+    uniform_cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
+
+    return merge_cutpoints(uniform_cutpoints, y, min_obs)

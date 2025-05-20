@@ -19,7 +19,7 @@ def test_plot_adjustment_factors():
         columns=[f"X_{i}" for i in range(X_train.shape[1])],
     )
 
-    cutpoints = drn_cutpoints(0, 1, 0.1, y_train, 2)
+    cutpoints = drn_cutpoints(0, 1, y_train, 0.1, 2)
 
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
