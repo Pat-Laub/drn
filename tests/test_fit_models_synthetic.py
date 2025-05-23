@@ -82,22 +82,22 @@ def test_glm_from_statsmodels():
     glm = GLM.from_statsmodels(X_df, y_ser, distribution="gaussian")
 
     # Check that pandas objects from split_and_preprocess
-    (
-        x_train,
-        x_val,
-        x_test,
-        y_train,
-        y_val,
-        y_test,
+    num_features = ["X_0", "X_1", "X_2", "X_3"]
+    cat_features = []
+    x_train_raw, x_val_raw, x_test_raw, y_train, y_val, y_test = split_data(
+        X_df,
+        y_ser,
+        seed=42,
+        train_size=0.6,
+        val_size=0.2,
+    )
+    x_train, x_val, x_test, ct, all_categories = preprocess_data(
         x_train_raw,
         x_val_raw,
         x_test_raw,
-        num_features,
-        cat_features,
-        all_categories,
-        ct,
-    ) = split_and_preprocess(
-        X_df, y_ser, ["X_0", "X_1", "X_2", "X_3"], [], seed=42, num_standard=True
+        num_features=num_features,
+        cat_features=cat_features,
+        num_standard=True,
     )
 
     glm = GLM.from_statsmodels(x_train, y_train, distribution="gamma")
