@@ -1,20 +1,9 @@
 import copy
-from typing import Callable, List, Union
-
-import numpy as np
-import pandas as pd
-
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import StandardScaler
-from sklearn.model_selection import train_test_split
+from typing import Callable, List, Union, Optional
 
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
-
-from .models import drn_cutpoints
-from .models import GLM
-from .models import DRN
 
 # Define Criterion type hint
 Criterion = Union[
@@ -24,48 +13,26 @@ Criterion = Union[
 
 
 def train(
-    model: nn.Module = None,
-    criterion: Criterion = None,
-    train_dataset: torch.utils.data.Dataset = None,
-    val_dataset: torch.utils.data.Dataset = None,
+    model: nn.Module,
+    criterion: Criterion,
+    train_dataset: torch.utils.data.Dataset,
+    val_dataset: torch.utils.data.Dataset,
     epochs=1000,
     patience=30,
     lr=0.001,
     device=None,
     log_interval=10,
-    batch_size=None,
+    batch_size=128,
     optimizer=torch.optim.Adam,
     print_details=True,
     keep_best=True,
     gradient_clipping=False,
-    num_hidden_layers=2,
-    hidden_size=128,
-    dropout_rate=0.2,
-    baseline=None,
-    cutpoints=None,
+    criterion_val: Optional[Criterion] = None,
 ) -> None:
     """
     A generic training function given a model and a criterion & optimizer.
     """
-    return_model = False
-    if model is None:
-        return_model = True
-        # Extract input features (X_train) and target (y_train) from the training dataset
-        X_train = train_dataset.tensors[0]
 
-        # Initialize the DRN model
-        torch.manual_seed(23)
-        model = DRN(
-            num_features=X_train.shape[1],
-            cutpoints=cutpoints,
-            glm=baseline,
-            num_hidden_layers=num_hidden_layers,
-            hidden_size=hidden_size,
-            dropout_rate=dropout_rate,
-        )
-
-    if batch_size is None:
-        batch_size = 128  # type: ignore
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
     val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=len(val_dataset))  # type: ignore
 
@@ -126,7 +93,10 @@ def train(
                 x = data.to(device)
                 y = target.to(device)
 
-                loss_val += criterion(model(x), y)
+                if criterion_val is not None:
+                    loss_val += criterion_val(model(x), y)
+                else:
+                    loss_val += criterion(model(x), y)
 
             if loss_val < best_loss:
                 best_loss = loss_val
