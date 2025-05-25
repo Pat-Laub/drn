@@ -1,3 +1,4 @@
+from typing import Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,6 +17,7 @@ class DRN(nn.Module):
         hidden_size=75,
         dropout_rate=0.2,
         baseline_start=False,
+        debug=False,
     ):
         """
         Args:
@@ -27,8 +29,10 @@ class DRN(nn.Module):
         """
         super(DRN, self).__init__()
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
-        # Assuming glm.clone() is a method to clone the glm model; ensure glm has a clone method.
-        self.glm = glm.clone() if hasattr(glm, "clone") else glm
+        self.glm = glm.clone()
+
+        for param in self.glm.parameters():
+            param.requires_grad = False
 
         layers = [
             nn.Linear(num_features, hidden_size),
@@ -44,12 +48,13 @@ class DRN(nn.Module):
 
         # Output layer
         self.fc_output = nn.Linear(hidden_size, len(self.cutpoints) - 1)
-        self.batch_norm = nn.BatchNorm1d(len(cutpoints) - 1)
 
         # Initialize weights and biases for fc_output to zero
         if baseline_start:
             nn.init.constant_(self.fc_output.weight, 0)
             nn.init.constant_(self.fc_output.bias, 0)
+
+        self.debug = debug
 
     def log_adjustments(self, x):
         """
@@ -65,12 +70,8 @@ class DRN(nn.Module):
         log_adjustments = self.fc_output(z)
         return log_adjustments
 
-        # normalized_log_adjustments = self.batch_norm(log_adjustments)
-        # return normalized_log_adjustments
-
     def forward(self, x):
-        DEBUG = True
-        if DEBUG:
+        if self.debug:
             num_cutpoints = len(self.cutpoints)
             num_regions = len(self.cutpoints) - 1
 
@@ -78,11 +79,11 @@ class DRN(nn.Module):
             baseline_dists = self.glm.distributions(x)
 
             baseline_cdfs = baseline_dists.cdf(self.cutpoints.unsqueeze(-1)).T
-            if DEBUG:
+            if self.debug:
                 assert baseline_cdfs.shape == (x.shape[0], num_cutpoints)
 
             baseline_probs = torch.diff(baseline_cdfs, dim=1)
-            if DEBUG:
+            if self.debug:
                 assert baseline_probs.shape == (x.shape[0], num_regions)
 
             # Sometimes the GLM probabilities are 0 simply due to numerical problems.
@@ -97,7 +98,7 @@ class DRN(nn.Module):
         drn_logits = torch.log(baseline_probs) + self.log_adjustments(x)
         drn_pmf = torch.softmax(drn_logits, dim=1)
 
-        if DEBUG:
+        if self.debug:
             assert drn_pmf.shape == (x.shape[0], num_regions)
 
             # Sometimes we get nan value in here. Otherwise, it should sum to 1.
@@ -214,7 +215,14 @@ def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list
     return new_cutpoints
 
 
-def drn_cutpoints(c_0, c_K, y, proportion=None, num_cutpoints=None, min_obs=1):
+def drn_cutpoints(
+    c_0,
+    c_K,
+    y: Union[np.ndarray, torch.tensor],
+    proportion=None,
+    num_cutpoints=None,
+    min_obs=1,
+):
     if proportion is None and num_cutpoints is None:
         raise ValueError(
             "Either a proportion p or a specific num_cutpoints must be provided."
@@ -225,4 +233,4 @@ def drn_cutpoints(c_0, c_K, y, proportion=None, num_cutpoints=None, min_obs=1):
 
     uniform_cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
 
-    return merge_cutpoints(uniform_cutpoints, y, min_obs)
+    return merge_cutpoints(uniform_cutpoints, np.asarray(y), min_obs)
