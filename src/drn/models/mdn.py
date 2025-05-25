@@ -55,6 +55,8 @@ class MDN(nn.Module):
         else:
             raise ValueError("Unsupported distribution: {}".format(distribution))
 
+        self.loss_fn = gamma_mdn_loss if distribution == "gamma" else gaussian_mdn_loss
+
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """
         Calculate the parameters of the mixture components.
@@ -93,6 +95,9 @@ class MDN(nn.Module):
             components = torch.distributions.Normal(params[1], params[2])
 
         return MixtureSameFamily(mixture, components)
+
+    def loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return self.loss_fn(self.forward(x), y)
 
     def mean(self, x: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """
@@ -209,8 +214,7 @@ def gamma_mdn_loss(out: list[torch.Tensor], y: torch.Tensor) -> torch.Tensor:
     """
     weights, alphas, betas = out
     dists = MixtureSameFamily(
-        Categorical(weights),
-        torch.distributions.Gamma(alphas, betas),
+        Categorical(weights), torch.distributions.Gamma(alphas, betas)
     )
     log_prob = dists.log_prob(y.squeeze())
     assert log_prob.ndim == 1
@@ -228,8 +232,7 @@ def gaussian_mdn_loss(out: list[torch.Tensor], y: torch.Tensor) -> torch.Tensor:
     """
     weights, mus, sigmas = out
     dists = MixtureSameFamily(
-        Categorical(weights),
-        torch.distributions.Normal(mus, sigmas),
+        Categorical(weights), torch.distributions.Normal(mus, sigmas)
     )
     log_prob = dists.log_prob(y.squeeze())
     assert log_prob.ndim == 1

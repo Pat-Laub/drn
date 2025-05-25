@@ -1,36 +1,42 @@
 import copy
-from typing import Callable, List, Union, Optional
+from typing import Optional
 
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
 
-# Define Criterion type hint
-Criterion = Union[
-    Callable[[torch.Tensor, torch.Tensor], torch.Tensor],
-    Callable[[List[torch.Tensor], torch.Tensor], torch.Tensor],
-]
-
 
 def train(
     model: nn.Module,
-    criterion: Criterion,
     train_dataset: torch.utils.data.Dataset,
     val_dataset: torch.utils.data.Dataset,
     epochs=1000,
     patience=30,
-    lr=0.001,
-    device=None,
+    lr: Optional[float] = 0.001,
+    device: Optional[torch.device] = None,
     log_interval=10,
     batch_size=128,
     optimizer=torch.optim.Adam,
     print_details=True,
     keep_best=True,
     gradient_clipping=False,
-    criterion_val: Optional[Criterion] = None,
 ) -> None:
     """
-    A generic training function given a model and a criterion & optimizer.
+    A generic neural network training function given a model and datasets.
+    Args:
+        model: The model to train.
+        train_dataset: Dataset for training.
+        val_dataset: Dataset for validation.
+        epochs: Number of epochs to train for.
+        patience: Number of epochs with no improvement after which training will be stopped.
+        lr: Learning rate for the optimizer.
+        device: Device to use for training (default is determined automatically).
+        log_interval: How often to log training progress.
+        batch_size: Batch size for training and validation.
+        optimizer: Optimizer class to use (default is Adam).
+        print_details: Whether to print detailed logs during training.
+        keep_best: Whether to return the best model found during training.
+        gradient_clipping: Whether to apply gradient clipping.
     """
 
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
@@ -45,12 +51,23 @@ def train(
         else:
             device = torch.device("cpu")
 
+    # If both learning rate is supplied, and the model has a learning rate attribute, use the supplied one.
+    if lr is not None:
+        if print_details:
+            if hasattr(model, "learning_rate") and model.learning_rate is not None:
+                print("Ignoring model's learning rate.")
+        learning_rate = lr
+    elif hasattr(model, "learning_rate") and model.learning_rate is not None:
+        learning_rate = model.learning_rate
+    else:
+        raise ValueError("Need a learning rate to train the model.")
+
     try:
         if print_details:
             print(f"Using device: {device}")
         model.to(device)
 
-        optimizer = optimizer(model.parameters(), lr=lr)
+        optimizer = optimizer(model.parameters(), lr=learning_rate)
 
         no_improvement = 0
         best_loss = torch.Tensor([float("inf")]).to(device)
@@ -64,20 +81,18 @@ def train(
                 x = data.to(device)
                 y = target.to(device)
                 optimizer.zero_grad()
-                loss = criterion(model(x), y)
-                loss.backward()
+                loss_batch = model.loss(x, y)
+                loss_batch.backward()
 
                 # Check for NaN gradients
                 for name, param in model.named_parameters():
-                    if (
-                        param.grad is not None
-                    ):  # Parameters might not have gradients if they are not trainable
-                        if torch.isnan(param.grad).any():
-                            if print_details:
-                                tqdm.write("Stopping training as NaN gradient detected")
-                            raise ValueError(
-                                f"Gradient NaN detected in {name}. Try smaller learning rates."
-                            )
+                    # Parameters might not have gradients if they are not trainable
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        if print_details:
+                            tqdm.write("Stopping training as NaN gradient detected")
+                        raise ValueError(
+                            f"Gradient NaN detected in {name}. Try smaller learning rates."
+                        )
 
                 if gradient_clipping:
                     # If no error is raised, proceed with gradient clipping and optimizer step
@@ -92,11 +107,7 @@ def train(
             for data, target in val_loader:
                 x = data.to(device)
                 y = target.to(device)
-
-                if criterion_val is not None:
-                    loss_val += criterion_val(model(x), y)
-                else:
-                    loss_val += criterion(model(x), y)
+                loss_val += model.loss(x, y)
 
             if loss_val < best_loss:
                 best_loss = loss_val
@@ -108,7 +119,7 @@ def train(
 
             if print_details and epoch % log_interval == 0:
                 tqdm.write(
-                    f"Epoch {epoch} \t| batch train loss: {loss.item():.4f}"
+                    f"Epoch {epoch} \t| batch train loss: {loss_batch.item():.4f}"
                     + f"\t| validation loss:  {loss_val.item():.4f}"
                     + f"\t| no improvement: {no_improvement}"
                 )

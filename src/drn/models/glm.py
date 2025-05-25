@@ -28,6 +28,11 @@ class GLM(nn.Module):
         self.distribution = distribution
         self.linear = nn.Linear(p, 1)
         self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
+        self.loss_fn = (
+            gaussian_deviance_loss
+            if distribution == "gaussian"
+            else gamma_deviance_loss
+        )
 
     @staticmethod
     def from_statsmodels(
@@ -119,6 +124,9 @@ class GLM(nn.Module):
             return torch.distributions.Gamma(alphas, betas)
         else:
             return torch.distributions.Normal(self.forward(x), self.dispersion)
+
+    def loss(self, x, y):
+        return self.loss_fn(self.forward(x), y)
 
     def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)

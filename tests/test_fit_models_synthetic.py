@@ -32,13 +32,7 @@ def test_glm():
     torch.manual_seed(1)
     glm = GLM(X_train.shape[1], distribution="gamma")
 
-    train(
-        glm,
-        gamma_deviance_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(glm, train_dataset, val_dataset, epochs=2)
 
     glm.update_dispersion(X_train, Y_train)
 
@@ -85,11 +79,7 @@ def test_glm_from_statsmodels():
     num_features = ["X_0", "X_1", "X_2", "X_3"]
     cat_features = []
     x_train_raw, x_val_raw, x_test_raw, y_train, y_val, y_test = split_data(
-        X_df,
-        y_ser,
-        seed=42,
-        train_size=0.6,
-        val_size=0.2,
+        X_df, y_ser, seed=42, train_size=0.6, val_size=0.2
     )
     x_train, x_val, x_test, ct, all_categories = preprocess_data(
         x_train_raw,
@@ -123,22 +113,10 @@ def test_cann():
 
     torch.manual_seed(2)
     glm = GLM(X_train.shape[1], distribution="gamma")
-    train(
-        glm,
-        gamma_deviance_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(glm, train_dataset, val_dataset, epochs=2)
 
     cann = CANN(glm, num_hidden_layers=2, hidden_size=100)
-    train(
-        cann,
-        gamma_deviance_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(cann, train_dataset, val_dataset, epochs=2)
 
     cann.update_dispersion(X_train, Y_train)
 
@@ -151,13 +129,7 @@ def test_mdn():
 
     torch.manual_seed(3)
     mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma")
-    train(
-        mdn,
-        gamma_mdn_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(mdn, train_dataset, val_dataset, epochs=2)
 
     check_crps(mdn, X_train, Y_train)
 
@@ -182,7 +154,7 @@ def test_ddr():
 
     torch.manual_seed(4)
     ddr = DDR(X_train.shape[1], cutpoints_ddr, hidden_size=100)
-    train(ddr, ddr_loss, train_dataset, val_dataset, epochs=2)
+    train(ddr, train_dataset, val_dataset, epochs=2)
 
     check_crps(ddr, X_train, Y_train)
 
@@ -198,36 +170,37 @@ def test_drn():
 
     torch.manual_seed(5)
     glm = GLM(X_train.shape[1], distribution="gamma")
-    train(
-        glm,
-        gamma_deviance_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(glm, train_dataset, val_dataset, epochs=2)
     glm.update_dispersion(X_train, Y_train)
 
-    drn = DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
+    drn = DRN(
+        X_train.shape[1],
+        cutpoints_drn,
+        glm,
+        hidden_size=100,
+        loss_metric="jbce",
+        kl_alpha=1.0,
+        mean_alpha=1.0,
+        dv_alpha=1.0,
+        tv_alpha=1.0,
+    )
 
     # Try both loss functions with their regularisation terms enabled
-    train(
-        drn,
-        lambda pred, y: drn_loss(
-            pred, y, kind="jbce", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
-        ),
-        train_dataset,
-        val_dataset,
-        epochs=2,
+    train(drn, train_dataset, val_dataset, epochs=2)
+
+    drn = DRN(
+        X_train.shape[1],
+        cutpoints_drn,
+        glm,
+        hidden_size=100,
+        loss_metric="nll",
+        kl_alpha=1.0,
+        mean_alpha=1.0,
+        dv_alpha=1.0,
+        tv_alpha=1.0,
     )
-    train(
-        drn,
-        lambda pred, y: drn_loss(
-            pred, y, kind="nll", kl_alpha=1, mean_alpha=1, dv_alpha=1, tv_alpha=1
-        ),
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+
+    train(drn, train_dataset, val_dataset, epochs=2)
 
     check_crps(drn, X_train, Y_train)
 
@@ -242,13 +215,7 @@ def test_torch():
 
     hs = 5
     drn = DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
-    train(
-        drn,
-        drn_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(drn, train_dataset, val_dataset, epochs=2)
 
     # Calculate the expected number of weights & biases given two layers of hs hidden units
     expected_num_weights = hs * X_train.shape[1] + hs + hs * hs + hs
@@ -266,13 +233,7 @@ def test_torch():
     num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
     assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
 
-    train(
-        drn,
-        drn_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(drn, train_dataset, val_dataset, epochs=2)
 
     # Check dropout is working as intended
     drn = DRN(
@@ -283,13 +244,7 @@ def test_torch():
         hidden_size=hs,
         dropout_rate=0.5,
     )
-    train(
-        drn,
-        drn_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(drn, train_dataset, val_dataset, epochs=2)
 
     # Make sure two different predictions (which in drn.train mode) are different
     drn.train()

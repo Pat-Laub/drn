@@ -17,6 +17,13 @@ class DRN(nn.Module):
         hidden_size=75,
         dropout_rate=0.2,
         baseline_start=False,
+        loss_metric="jbce",
+        kl_alpha=0.0,
+        mean_alpha=0.0,
+        tv_alpha=0.0,
+        dv_alpha=0.0,
+        kl_direction="forwards",
+        learning_rate=1e-3,
         debug=False,
     ):
         """
@@ -54,6 +61,13 @@ class DRN(nn.Module):
             nn.init.constant_(self.fc_output.weight, 0)
             nn.init.constant_(self.fc_output.bias, 0)
 
+        self.loss_metric = loss_metric
+        self.kl_alpha = kl_alpha
+        self.mean_alpha = mean_alpha
+        self.tv_alpha = tv_alpha
+        self.dv_alpha = dv_alpha
+        self.kl_direction = kl_direction
+        self.learning_rate = learning_rate
         self.debug = debug
 
     def log_adjustments(self, x):
@@ -103,8 +117,7 @@ class DRN(nn.Module):
 
             # Sometimes we get nan value in here. Otherwise, it should sum to 1.
             assert torch.isnan(drn_pmf).any() or torch.allclose(
-                torch.sum(drn_pmf, axis=1),
-                torch.ones(x.shape[0], device=x.device),
+                torch.sum(drn_pmf, axis=1), torch.ones(x.shape[0], device=x.device)
             )
 
         return baseline_dists, self.cutpoints, baseline_probs, drn_pmf
@@ -112,6 +125,22 @@ class DRN(nn.Module):
     def distributions(self, x):
         baseline_dists, cutpoints, baseline_probs, drn_pmf = self.forward(x)
         return ExtendedHistogram(baseline_dists, cutpoints, drn_pmf, baseline_probs)
+
+    def loss(self, x, y):
+        if self.training:
+            return drn_loss(
+                self.forward(x),
+                y,
+                kind=self.loss_metric,
+                kl_alpha=self.kl_alpha,
+                mean_alpha=self.mean_alpha,
+                tv_alpha=self.tv_alpha,
+                dv_alpha=self.dv_alpha,
+                kl_direction=self.kl_direction,
+            )
+        else:
+            # Disable regularization during evaluation phase (e.g. validation set loss)
+            return drn_loss(self.forward(x), y, kind=self.loss_metric)
 
 
 def jbce_loss(dists, y, alpha=0.0):

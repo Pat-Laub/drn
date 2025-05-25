@@ -7,7 +7,13 @@ from ..distributions.histogram import Histogram
 
 class DDR(nn.Module):
     def __init__(
-        self, p: int, cutpoints, num_hidden_layers=2, hidden_size=100, dropout_rate=0.2
+        self,
+        p: int,
+        cutpoints,
+        num_hidden_layers=2,
+        hidden_size=100,
+        dropout_rate=0.2,
+        loss_metric="jbce",
     ):
         """
         Args:
@@ -36,6 +42,8 @@ class DDR(nn.Module):
         # Output layer for the pi values
         self.pi = nn.Linear(hidden_size, len(self.cutpoints) - 1)
 
+        self.loss_metric = loss_metric
+
     def forward(self, x):
         """
         Forward pass of the DDR model.
@@ -57,6 +65,13 @@ class DDR(nn.Module):
         dists = Histogram(cutpoints, prob_masses)
         assert dists.batch_shape == torch.Size([x.shape[0]])
         return dists
+
+    def loss(self, x, y):
+        dists = self.distributions(x)
+        if self.loss_metric == "jbce":
+            return jbce_loss(dists, y)
+        elif self.loss_metric == "nll":
+            return nll_loss(dists, y)
 
 
 def jbce_loss(dists, y, alpha=0.0):

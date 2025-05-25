@@ -24,21 +24,9 @@ def test_plot_adjustment_factors():
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
     drn = DRN(X_train.shape[1], cutpoints, glm)
-    train(
-        drn,
-        drn_loss,
-        train_dataset,
-        val_dataset,
-        epochs=2,
-    )
+    train(drn, train_dataset, val_dataset, epochs=2)
 
-    drn_explainer = DRNExplainer(
-        drn,
-        glm,
-        cutpoints,
-        x_train,
-        cat_features=[],
-    )
+    drn_explainer = DRNExplainer(drn, glm, cutpoints, x_train, cat_features=[])
 
     instance = pd.DataFrame(
         np.array([[0.0, 1.0, 2.0, 3.0]]), columns=["X_1", "X_2", "X_3", "X_4"]

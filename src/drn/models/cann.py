@@ -4,7 +4,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-from .glm import GLM, gamma_convert_parameters, estimate_dispersion
+from .glm import (
+    GLM,
+    gamma_convert_parameters,
+    estimate_dispersion,
+    gamma_deviance_loss,
+    gaussian_deviance_loss,
+)
 
 
 class CANN(nn.Module):
@@ -53,6 +59,12 @@ class CANN(nn.Module):
         layers.append(nn.Linear(hidden_size, 1))
         self.nn_output_layer = nn.Sequential(*layers)
 
+        self.loss_fn = (
+            gaussian_deviance_loss
+            if self.distribution == "gaussian"
+            else gamma_deviance_loss
+        )
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Calculate the predicted outputs for the distributions.
@@ -87,6 +99,9 @@ class CANN(nn.Module):
 
         assert dists.batch_shape == torch.Size([x.shape[0]])
         return dists
+
+    def loss(self, x, y):
+        return self.loss_fn(self.forward(x), y)
 
     def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
