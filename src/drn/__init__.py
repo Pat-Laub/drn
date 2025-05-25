@@ -5,4 +5,9 @@ from .interpretability import DRNExplainer
 from .kernel_shap_explainer import KernelSHAP_DRN
 from .train import train
 from .metrics import crps, quantile_score, quantile_losses, rmse
-from .utils import split_and_preprocess, split_data, preprocess_data
+from .utils import (
+    split_and_preprocess,
+    split_data,
+    preprocess_data,
+    replace_rare_categories,
+)

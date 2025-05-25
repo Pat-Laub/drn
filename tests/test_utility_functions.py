@@ -124,3 +124,58 @@ def test_split_preprocess():
         assert sorted(list(all_categories1[feature])) == all_categories2[feature]
 
     assert len(all_categories1) == len(all_categories2)
+
+def test_basic_replacement():
+    df = pd.DataFrame({
+        "animal": ["cat", "dog", "dog", "lion", "lion", "lion", "tiger"],
+        "count": [1, 2, 3, 4, 5, 6, 7]
+    })
+    result = replace_rare_categories(df, threshold=3)
+    assert result["animal"].tolist() == ["OTHER", "OTHER", "OTHER", "lion", "lion", "lion", "OTHER"]
+    assert isinstance(result["animal"].dtype, pd.CategoricalDtype)
+
+def test_no_replacement_needed():
+    df = pd.DataFrame({"color": ["red", "red", "blue", "blue", "green", "green"]})
+    result = replace_rare_categories(df, threshold=2)
+    assert set(result["color"]) == {"red", "blue", "green"}
+
+def test_all_rare_categories():
+    df = pd.DataFrame({"tool": ["hammer", "screwdriver", "wrench"]})
+    result = replace_rare_categories(df, threshold=2)
+    assert set(result["tool"]) == {"OTHER"}
+    assert all(val == "OTHER" for val in result["tool"])
+    assert isinstance(result["tool"].dtype, pd.CategoricalDtype)
+
+def test_custom_column_selection():
+    df = pd.DataFrame({
+        "cat_col": ["a", "b", "b", "c", "c", "c"],
+        "other_col": ["x", "x", "y", "y", "z", "z"]
+    })
+    result = replace_rare_categories(df, threshold=3, cat_features=["cat_col"])
+    assert set(result["cat_col"]) == {"OTHER", "c"}
+    assert set(result["other_col"]) == {"x", "y", "z"}  # untouched
+
+def test_non_categorical_data_ignored():
+    df = pd.DataFrame({
+        "cat": ["a", "b", "b", "c", "c", "c"],
+        "num": [1, 2, 3, 4, 5, 6]
+    })
+    result = replace_rare_categories(df, threshold=3)
+    assert result["num"].equals(df["num"])  # unchanged
+    assert isinstance(result["cat"].dtype, pd.CategoricalDtype)
+
+def test_placeholder_conflict_raises_error():
+    df = pd.DataFrame({
+        "animal": ["cat", "dog", "OTHER", "lion", "lion", "lion"]
+    })
+    with pytest.raises(ValueError, match="placeholder value 'OTHER' already exists"):
+        replace_rare_categories(df, threshold=2, placeholder="OTHER")
+    
+    # Another way this may occur is if the function is called twice by accident
+    df = pd.DataFrame({
+        "animal": ["cat", "dog", "dog", "lion", "lion", "lion", "tiger"],
+        "count": [1, 2, 3, 4, 5, 6, 7]
+    })
+    result = replace_rare_categories(df, threshold=3)
+    with pytest.raises(ValueError, match="placeholder value 'OTHER' already exists"):
+        replace_rare_categories(result, threshold=2)

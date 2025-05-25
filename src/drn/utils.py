@@ -1,3 +1,4 @@
+from typing import Optional
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
@@ -131,6 +132,50 @@ def split_data(
         shuffle=True,
     )
     return x_train_raw, x_val_raw, x_test_raw, y_train, y_val, y_test
+
+
+def replace_rare_categories(
+    df: pd.DataFrame,
+    threshold: int = 10,
+    placeholder: str = "OTHER",
+    cat_features: Optional[list[str]] = None,
+) -> pd.DataFrame:
+    """
+    Replace rare categories in specified categorical columns with a placeholder category.
+
+    Parameters:
+    - df: The input DataFrame.
+    - threshold: Minimum number of occurrences for a category to be kept.
+    - placeholder: Name to assign to rare categories.
+    - cat_features: If specified, only apply to these columns.
+
+    Raises:
+    - ValueError: If the placeholder value already exists in any of the target columns.
+
+    Returns:
+    - pd.DataFrame: A new DataFrame with rare categories replaced.
+    """
+    df = df.copy()
+    columns = (
+        cat_features
+        if cat_features is not None
+        else df.select_dtypes(include=["object", "category"]).columns
+    )
+
+    # Check for placeholder conflicts
+    for col in columns:
+        if placeholder in df[col].unique():
+            raise ValueError(
+                f"The placeholder value '{placeholder}' already exists in column '{col}'."
+            )
+
+    for col in columns:
+        value_counts = df[col].value_counts()
+        rare_categories = value_counts[value_counts < threshold].index
+        df[col] = df[col].apply(lambda x: placeholder if x in rare_categories else x)
+        if df[col].dtype.name != "category":
+            df[col] = df[col].astype("category")
+    return df
 
 
 def generate_categories(
