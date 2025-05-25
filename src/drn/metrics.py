@@ -1,11 +1,7 @@
 import torch
 
 
-def crps(
-    obs: torch.Tensor,
-    grid: torch.Tensor,
-    cdf_on_grid: torch.Tensor,
-):
+def crps(obs: torch.Tensor, grid: torch.Tensor, cdf_on_grid: torch.Tensor):
     """
     Compute CRPS using the provided grid and CDF values with PyTorch tensors.
 

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 
 from ..distributions.extended_histogram import ExtendedHistogram
-from .ddr import nll_loss
+from .ddr import jbce_loss, nll_loss
 
 
 class DRN(nn.Module):
@@ -141,40 +141,6 @@ class DRN(nn.Module):
         else:
             # Disable regularization during evaluation phase (e.g. validation set loss)
             return drn_loss(self.forward(x), y, kind=self.loss_metric)
-
-
-def jbce_loss(dists, y, alpha=0.0):
-    """
-    The joint binary cross entropy loss.
-    Args:
-        dists: the predicted distributions
-        y: the observed values
-        alpha: the penalty parameter
-    """
-
-    cutpoints = dists.cutpoints
-    cdf_at_cutpoints = dists.cdf_at_cutpoints()
-
-    assert cdf_at_cutpoints.shape == torch.Size([len(cutpoints), len(y)])
-
-    n = y.shape[0]
-    C = len(cutpoints)
-
-    # The cross entropy loss can't accept 0s or 1s for the cumulative probabilities.
-    epsilon = 1e-15
-    cdf_at_cutpoints = cdf_at_cutpoints.clamp(epsilon, 1 - epsilon)
-
-    # Change: C to C-1
-    losses = torch.zeros(C - 1, n, device=y.device, dtype=y.dtype)
-
-    for i in range(1, C):
-        targets = (y <= cutpoints[i]).float()
-        probs = cdf_at_cutpoints[i, :]
-        losses[i - 1, :] = nn.functional.binary_cross_entropy(
-            probs, targets, reduction="none"
-        )
-
-    return torch.mean(losses)
 
 
 def drn_loss(

@@ -58,9 +58,7 @@ class KernelSHAP_DRN:
                     random_state=random_state,
                 ),
             )
-            self.shap_values_kernel = kernel_shap_explainer(
-                self.explaining_data,
-            )
+            self.shap_values_kernel = kernel_shap_explainer(self.explaining_data)
             self.shap_base_values = self.shap_values_kernel.base_values
             self.shap_values = self.shap_values_kernel.values
 
@@ -77,7 +75,7 @@ class KernelSHAP_DRN:
                     ),
                 )
                 self.shap_values_kernel_glm = kernel_shap_explainer_glm(
-                    self.explaining_data,
+                    self.explaining_data
                 )
 
     def forward(self):
@@ -293,31 +291,3 @@ class KernelSHAP_DRN:
                     + self.shap_values_kernel_glm.values[:, indexes]
                 )
         return shap_values
-
-
-def plot_drn_density(
-    x_grid,
-    drn_pdf,
-    index_left,
-    index_right,
-    axes,
-    alpha=1.0,
-):
-    for i in range(index_left, index_right - 1):
-        # Plot the horizontal line with increased thickness
-        xs = x_grid[i : i + 2]
-        ys = np.full_like(xs, drn_pdf[i])
-        lab = "DRN" if i == index_left else None
-
-        axes.plot(xs, ys, color="blue", linewidth=2, alpha=alpha, label=lab)
-
-        # Draw vertical dashed lines between the jumps
-        if i < index_right - 2:  # Check to avoid adding a vertical line at the end
-            axes.vlines(
-                xs[-1],
-                drn_pdf[i],
-                drn_pdf[i + 1],
-                color="blue",
-                linestyles="dotted",
-                alpha=alpha,
-            )

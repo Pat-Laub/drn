@@ -185,14 +185,7 @@ class DRNExplainer:
                 alpha=alpha,
             )
 
-        plot_drn_density(
-            x_grid,
-            drn_pdf,
-            index_left,
-            index_right,
-            axes,
-            alpha,
-        )
+        plot_drn_density(x_grid, drn_pdf, index_left, index_right, axes, alpha)
 
         # Integrate SHAP explanations into the plot
         self.kernel_shap_plot(
@@ -278,7 +271,7 @@ class DRNExplainer:
             plt.title(plot_title)
         else:
             plt.title(
-                f'{dist_property} {"Adjustment" if adjustment else "Explanation"}',
+                f'{dist_property} {"Adjustment" if adjustment else "Explanation"}'
             )
 
         plt.legend(loc=legend_loc)
@@ -374,14 +367,7 @@ class DRNExplainer:
             alpha=alpha,
         )
 
-        plot_drn_density(
-            x_grid,
-            drn_pdf,
-            index_left,
-            index_right,
-            axes,
-            alpha,
-        )
+        plot_drn_density(x_grid, drn_pdf, index_left, index_right, axes, alpha)
 
         # Other DF Models Plotting
         if other_df_models is not None:
@@ -582,12 +568,7 @@ class DRNExplainer:
             # Plotting
             x = np.linspace(x_range[0], x_range[1], num_interpolations)
             plt.plot(
-                x,
-                density(x),
-                color="red",
-                linewidth=2,
-                alpha=alpha,
-                label="True (KDE)",
+                x, density(x), color="red", linewidth=2, alpha=alpha, label="True (KDE)"
             )
 
         if plot_mean_adjustment:
@@ -1336,9 +1317,7 @@ class DRNExplainer:
             self.glm.quantiles(instances, percentile, l=grid[0], u=grid[-1] * 1.5)
             .detach()
             .numpy()
-            .reshape(
-                instances.shape[0],
-            )
+            .reshape(instances.shape[0])
         )
 
     def quantile_value_function(
@@ -1356,15 +1335,11 @@ class DRNExplainer:
         )
 
         return (
-            self.quantile_drn(instances, percentile, grid).reshape(
-                instances.shape[0],
-            )
-            - self.quantile_glm(instances, percentile, grid).reshape(
-                instances.shape[0],
-            )
+            self.quantile_drn(instances, percentile, grid).reshape(instances.shape[0])
+            - self.quantile_glm(instances, percentile, grid).reshape(instances.shape[0])
             if adjustment
             else self.quantile_drn(instances, percentile, grid).reshape(
-                instances.shape[0],
+                instances.shape[0]
             )
         )
 
@@ -1404,14 +1379,7 @@ class DRNExplainer:
         return value_function
 
 
-def plot_drn_density(
-    x_grid,
-    drn_pdf,
-    index_left,
-    index_right,
-    axes,
-    alpha=1.0,
-):
+def plot_drn_density(x_grid, drn_pdf, index_left, index_right, axes, alpha=1.0):
     for i in range(index_left, index_right - 1):
         # Plot the horizontal line with increased thickness
         xs = x_grid[i : i + 2]
