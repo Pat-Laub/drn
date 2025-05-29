@@ -40,7 +40,7 @@ def split_and_preprocess(
         )
 
     # One-hot Encoding
-    features_one_hot = pd.get_dummies(features, columns=cat_features)
+    features_one_hot = pd.get_dummies(features, columns=cat_features, drop_first=True)
     features_one_hot = features_one_hot.astype(float)
 
     x_train, x_test, y_train, y_test = train_test_split(
@@ -238,6 +238,7 @@ def preprocess_data(
         categories=[all_categories[f] for f in cat_features],
         handle_unknown="error",
         sparse_output=False,
+        drop="first",
     )
 
     # Build transformers list
