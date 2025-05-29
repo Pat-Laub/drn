@@ -5,9 +5,10 @@ import torch.nn as nn
 
 from ..distributions.extended_histogram import ExtendedHistogram
 from .ddr import jbce_loss, nll_loss
+from .base import BaseModel
 
 
-class DRN(nn.Module):
+class DRN(BaseModel):
     def __init__(
         self,
         num_features,

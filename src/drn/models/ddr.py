@@ -3,9 +3,10 @@ import torch
 import torch.nn as nn
 
 from ..distributions.histogram import Histogram
+from .base import BaseModel
 
 
-class DDR(nn.Module):
+class DDR(BaseModel):
     def __init__(
         self,
         p: int,

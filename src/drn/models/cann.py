@@ -12,8 +12,10 @@ from .glm import (
     gaussian_deviance_loss,
 )
 
+from .base import BaseModel
 
-class CANN(nn.Module):
+
+class CANN(BaseModel):
     """
     The Combined Actuarial Neural Network (CANN) model adaptable for both gamma and Gaussian GLMs.
     """

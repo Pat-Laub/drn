@@ -5,9 +5,11 @@ import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
 
+from .models.base import BaseModel
+
 
 def train(
-    model: nn.Module,
+    model: BaseModel,
     train_dataset: torch.utils.data.Dataset,
     val_dataset: torch.utils.data.Dataset,
     epochs=1000,

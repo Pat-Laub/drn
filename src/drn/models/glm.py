@@ -6,9 +6,10 @@ import torch.nn as nn
 
 import statsmodels.api as sm
 from statsmodels.genmod.families import Gaussian, Gamma
+from .base import BaseModel
 
 
-class GLM(nn.Module):
+class GLM(BaseModel):
     """
     A base PyTorch model representing a generalized linear model.
     This class is extended by specific distribution types like Gamma or Gaussian.

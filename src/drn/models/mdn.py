@@ -5,9 +5,10 @@ import torch
 import torch.nn as nn
 from torch.distributions import Categorical
 from torch.distributions.mixture_same_family import MixtureSameFamily
+from .base import BaseModel
 
 
-class MDN(nn.Module):
+class MDN(BaseModel):
     """
     Mixture density network that can switch between gamma and Gaussian distribution components.
     The distributional forecasts are mixtures of `num_components` specified distributions.
