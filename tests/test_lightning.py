@@ -118,7 +118,7 @@ def test_drn():
     trainer.fit(glm, train_loader, val_loader)
     glm.update_dispersion(X_train, Y_train)
 
-    drn_model = DRN(X_train.shape[1], cutpoints_drn, glm, hidden_size=100)
+    drn_model = DRN(glm, cutpoints_drn, hidden_size=100)
     trainer.fit(drn_model, train_loader, val_loader)
 
     check_crps(drn_model, X_train, Y_train)
@@ -136,9 +136,7 @@ def test_torch():
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
     hs = 5
-    drn_model = DRN(
-        X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs
-    )
+    drn_model = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs)
     trainer = L.Trainer(
         max_epochs=2, logger=False, enable_checkpointing=False, accelerator="cpu"
     )  # MPS error

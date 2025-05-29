@@ -174,9 +174,8 @@ def test_drn():
     glm.update_dispersion(X_train, Y_train)
 
     drn = DRN(
-        X_train.shape[1],
-        cutpoints_drn,
         glm,
+        cutpoints_drn,
         hidden_size=100,
         loss_metric="jbce",
         kl_alpha=1.0,
@@ -189,9 +188,8 @@ def test_drn():
     train(drn, train_dataset, val_dataset, epochs=2)
 
     drn = DRN(
-        X_train.shape[1],
-        cutpoints_drn,
         glm,
+        cutpoints_drn,
         hidden_size=100,
         loss_metric="nll",
         kl_alpha=1.0,
@@ -214,7 +212,7 @@ def test_torch():
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
     hs = 5
-    drn = DRN(X_train.shape[1], cutpoints, glm, num_hidden_layers=2, hidden_size=hs)
+    drn = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs)
     train(drn, train_dataset, val_dataset, epochs=2)
 
     # Calculate the expected number of weights & biases given two layers of hs hidden units
@@ -223,27 +221,14 @@ def test_torch():
     assert num_weights == expected_num_weights
 
     # Try again using np.int64 instead of ints for the hyperparameters
-    drn = DRN(
-        X_train.shape[1],
-        cutpoints,
-        glm,
-        num_hidden_layers=np.int64(2),
-        hidden_size=np.int64(hs),
-    )
+    drn = DRN(glm, cutpoints, num_hidden_layers=np.int64(2), hidden_size=np.int64(hs))
     num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
     assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
 
     train(drn, train_dataset, val_dataset, epochs=2)
 
     # Check dropout is working as intended
-    drn = DRN(
-        X_train.shape[1],
-        cutpoints,
-        glm,
-        num_hidden_layers=2,
-        hidden_size=hs,
-        dropout_rate=0.5,
-    )
+    drn = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs, dropout_rate=0.5)
     train(drn, train_dataset, val_dataset, epochs=2)
 
     # Make sure two different predictions (which in drn.train mode) are different

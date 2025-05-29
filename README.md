@@ -21,7 +21,7 @@ c_0, c_K = 0, y_train.max().item() * 1.1
 cutpoints = drn_cutpoints(c_0, c_K, proportion=0.1, y=y_train)
 glm = GLM.from_statsmodels(X_train, y_train, distribution="gamma")
 
-drn_model = DRN(X_train.shape[1], cutpoints, glm, hidden_size=128, num_hidden_layers=2)
+drn_model = DRN(glm, cutpoints, hidden_size=128, num_hidden_layers=2)
 train(drn_model, train_dataset, val_dataset, batch_size=256, epochs=10)
 ```
 

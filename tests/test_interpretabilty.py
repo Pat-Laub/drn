@@ -23,7 +23,7 @@ def test_plot_adjustment_factors():
 
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
-    drn = DRN(X_train.shape[1], cutpoints, glm)
+    drn = DRN(glm, cutpoints)
     train(drn, train_dataset, val_dataset, epochs=2)
 
     drn_explainer = DRNExplainer(drn, glm, cutpoints, x_train, cat_features=[])

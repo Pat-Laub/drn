@@ -11,9 +11,8 @@ from .base import BaseModel
 class DRN(BaseModel):
     def __init__(
         self,
-        num_features,
-        cutpoints,
         glm,
+        cutpoints,
         num_hidden_layers=2,
         hidden_size=75,
         dropout_rate=0.2,
@@ -29,21 +28,20 @@ class DRN(BaseModel):
     ):
         """
         Args:
-            num_features: Number of features in the input dataset.
-            cutpoints: Cutpoints for the DRN model.
             glm: A Generalized Linear Model (GLM) that DRN will adjust.
+            cutpoints: Cutpoints for the DRN model.
             num_hidden_layers: Number of hidden layers in the DRN network.
             hidden_size: Number of neurons in each hidden layer.
         """
         super(DRN, self).__init__()
-        self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         self.glm = glm.clone()
+        self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
 
         for param in self.glm.parameters():
             param.requires_grad = False
 
         layers = [
-            nn.Linear(num_features, hidden_size),
+            nn.Linear(glm.p, hidden_size),
             nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
         ]
@@ -83,7 +81,7 @@ class DRN(BaseModel):
         z = self.hidden_layers(x)
         # Compute log adjustments
         log_adjustments = self.fc_output(z)
-        return log_adjustments
+        return log_adjustments  # - torch.mean(log_adjustments, dim=1, keepdim=True)
 
     def forward(self, x):
         if self.debug:
