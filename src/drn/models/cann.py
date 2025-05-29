@@ -1,4 +1,4 @@
-from typing import Optional, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -25,6 +25,7 @@ class CANN(nn.Module):
         hidden_size=50,
         dropout_rate=0.2,
         train_glm=False,
+        learning_rate=1e-3,
     ):
         """
         Args:
@@ -64,6 +65,7 @@ class CANN(nn.Module):
             if self.distribution == "gaussian"
             else gamma_deviance_loss
         )
+        self.learning_rate = learning_rate
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

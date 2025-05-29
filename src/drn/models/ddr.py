@@ -14,6 +14,7 @@ class DDR(nn.Module):
         hidden_size=100,
         dropout_rate=0.2,
         loss_metric="jbce",
+        learning_rate=1e-3,
     ):
         """
         Args:
@@ -42,7 +43,11 @@ class DDR(nn.Module):
         # Output layer for the pi values
         self.pi = nn.Linear(hidden_size, len(self.cutpoints) - 1)
 
+        # Assert that loss_metric is either 'jbce' or 'nll'
+        if loss_metric not in ["jbce", "nll"]:
+            raise ValueError(f"Unsupported loss metric: {loss_metric}")
         self.loss_metric = loss_metric
+        self.learning_rate = learning_rate
 
     def forward(self, x):
         """
@@ -70,7 +75,7 @@ class DDR(nn.Module):
         dists = self.distributions(x)
         if self.loss_metric == "jbce":
             return jbce_loss(dists, y)
-        elif self.loss_metric == "nll":
+        else:
             return nll_loss(dists, y)
 
 

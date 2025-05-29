@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Optional, Union
 import numpy as np
 import torch
 import torch.nn as nn
@@ -103,10 +103,10 @@ class DRN(nn.Module):
             # Sometimes the GLM probabilities are 0 simply due to numerical problems.
             # DRN cannot adjust regions with 0 probability, so we ensure 0's become
             # an incredibly small number just to avoid this issue.
-            mass = torch.sum(baseline_probs, axis=1, keepdim=True)
+            mass = torch.sum(baseline_probs, dim=1, keepdim=True)
             baseline_probs = torch.clip(baseline_probs, min=1e-10, max=1.0)
             baseline_probs = (
-                baseline_probs / torch.sum(baseline_probs, axis=1, keepdim=True) * mass
+                baseline_probs / torch.sum(baseline_probs, dim=1, keepdim=True) * mass
             )
 
         drn_logits = torch.log(baseline_probs) + self.log_adjustments(x)
@@ -117,7 +117,7 @@ class DRN(nn.Module):
 
             # Sometimes we get nan value in here. Otherwise, it should sum to 1.
             assert torch.isnan(drn_pmf).any() or torch.allclose(
-                torch.sum(drn_pmf, axis=1), torch.ones(x.shape[0], device=x.device)
+                torch.sum(drn_pmf, dim=1), torch.ones(x.shape[0], device=x.device)
             )
 
         return baseline_dists, self.cutpoints, baseline_probs, drn_pmf
@@ -147,10 +147,10 @@ def drn_loss(
     pred,
     y,
     kind="jbce",
-    kl_alpha=0,
-    mean_alpha=0,
-    tv_alpha=0,
-    dv_alpha=0,
+    kl_alpha=0.0,
+    mean_alpha=0.0,
+    tv_alpha=0.0,
+    dv_alpha=0.0,
     kl_direction="forwards",
 ):
     baseline_dists, cutpoints, baseline_probs, drn_pmf = pred
@@ -161,32 +161,36 @@ def drn_loss(
     else:
         losses = nll_loss(dists, y)
 
+    reg_loss = 0.0
+    epsilon = 1e-30
     a_i = dists.real_adjustments()
     b_i = baseline_probs
 
     if kl_alpha > 0:
-        epsilon = 1e-30
         if kl_direction == "forwards":
             kl = -(torch.log(a_i + epsilon) * b_i)
         else:
             kl = torch.log(a_i + epsilon) * a_i * b_i
-        losses += torch.mean(torch.sum(kl, axis=0)) * kl_alpha
+        reg_loss += torch.mean(torch.sum(kl, dim=1)) * kl_alpha
 
     if mean_alpha > 0:
-        losses += torch.mean((baseline_dists.mean - dists.mean) ** 2) * mean_alpha
+        mean_penalty = torch.mean((baseline_dists.mean - dists.mean) ** 2)
+        reg_loss += mean_alpha * mean_penalty
 
     if tv_alpha > 0 or dv_alpha > 0:
         drn_density = a_i * b_i / torch.diff(cutpoints)
         first_diffs = torch.diff(drn_density, dim=1)
 
         if tv_alpha > 0:
-            losses += torch.mean(torch.sum(torch.abs(first_diffs), dim=1)) * tv_alpha
+            tv_penalty = torch.mean(torch.sum(torch.abs(first_diffs), dim=1))
+            reg_loss += tv_alpha * tv_penalty
 
         if dv_alpha > 0:
             second_diffs = torch.diff(first_diffs, dim=1)
-            losses += torch.mean(torch.sum(second_diffs**2, dim=1)) * dv_alpha
+            dv_penalty = torch.mean(torch.sum(second_diffs**2, dim=1))
+            reg_loss += dv_alpha * dv_penalty
 
-    return losses
+    return losses + reg_loss
 
 
 def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list[float]:
@@ -211,21 +215,21 @@ def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list
 
 
 def drn_cutpoints(
-    c_0,
-    c_K,
-    y: Union[np.ndarray, torch.tensor],
-    proportion=None,
-    num_cutpoints=None,
+    c_0: float,
+    c_K: float,
+    y: Union[np.ndarray, torch.Tensor],
+    proportion: Optional[float] = None,
+    num_cutpoints: Optional[int] = None,
     min_obs=1,
 ):
     if proportion is None and num_cutpoints is None:
         raise ValueError(
-            "Either a proportion p or a specific num_cutpoints must be provided."
+            "Either a proportion or a specific num_cutpoints must be provided."
         )
 
-    if proportion is not None:
+    if num_cutpoints is None and proportion is not None:
         num_cutpoints = int(np.ceil(proportion * len(y)))
 
-    uniform_cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))
+    uniform_cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))  # type: ignore
 
     return merge_cutpoints(uniform_cutpoints, np.asarray(y), min_obs)

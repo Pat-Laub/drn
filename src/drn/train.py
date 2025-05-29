@@ -12,7 +12,7 @@ def train(
     val_dataset: torch.utils.data.Dataset,
     epochs=1000,
     patience=30,
-    lr: Optional[float] = 0.001,
+    lr: Optional[float] = None,
     device: Optional[torch.device] = None,
     log_interval=10,
     batch_size=128,
@@ -140,5 +140,3 @@ def train(
 
         # Make sure dropout is always disabled after training
         model.eval()
-
-        return model

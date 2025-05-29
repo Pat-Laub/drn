@@ -21,6 +21,7 @@ class MDN(nn.Module):
         hidden_size=100,
         dropout_rate=0.2,
         distribution="gamma",
+        learning_rate=1e-3,
     ):
         """
         Args:
@@ -56,6 +57,7 @@ class MDN(nn.Module):
             raise ValueError("Unsupported distribution: {}".format(distribution))
 
         self.loss_fn = gamma_mdn_loss if distribution == "gamma" else gaussian_mdn_loss
+        self.learning_rate = learning_rate
 
     def forward(self, x: torch.Tensor) -> List[torch.Tensor]:
         """

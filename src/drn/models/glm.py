@@ -14,7 +14,7 @@ class GLM(nn.Module):
     This class is extended by specific distribution types like Gamma or Gaussian.
     """
 
-    def __init__(self, p: int, distribution: str):
+    def __init__(self, p: int, distribution: str, learning_rate=1e-3):
         """
         Args:
             p: the number of features in the model
@@ -33,6 +33,7 @@ class GLM(nn.Module):
             if distribution == "gaussian"
             else gamma_deviance_loss
         )
+        self.learning_rate = learning_rate
 
     @staticmethod
     def from_statsmodels(
@@ -53,7 +54,7 @@ class GLM(nn.Module):
         """
         p = X.shape[1]
 
-        if isinstance(X, torch.Tensor):
+        if isinstance(X, torch.Tensor) and isinstance(y, torch.Tensor):
             device = X.device
             X = X.detach().cpu().numpy()
             y = y.detach().cpu().numpy()

@@ -1,31 +1,30 @@
 import re
+from typing import Optional
 
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
-from matplotlib import ticker
 
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import shap
 import torch
-import sklearn
 from scipy.stats import gaussian_kde
 from sklearn.compose import ColumnTransformer
 
+from .models.glm import GLM
+from .models.drn import DRN
 from .kernel_shap_explainer import KernelSHAP_DRN
 
 
 class DRNExplainer:
     def __init__(
         self,
-        drn: torch.nn.Module,
-        glm: torch.nn.Module,
+        drn: DRN,
+        glm: GLM,
         default_cutpoints: list,
         background_data_df_before_one_hot: pd.DataFrame,
         cat_features: list,
-        all_categories: list = None,
-        column_transformer: ColumnTransformer = None,
+        all_categories: Optional[list] = None,
+        column_transformer: Optional[ColumnTransformer] = None,
     ):
         """
         Initialise the DRNExplainer with the given parameters.
@@ -76,25 +75,25 @@ class DRNExplainer:
         self,
         instance_raw: pd.DataFrame,
         dist_property: str = "Mean",
-        quantile_bounds: tuple = None,
+        quantile_bounds: Optional[tuple] = None,
         method: str = "Kernel",
         nsamples_background_fraction: float = 1.0,
         top_K_features: int = 3,
         adjustment: bool = True,
-        other_df_models: list = None,
-        model_names: list = None,
-        cutpoints: list = None,
-        num_interpolations: int = None,
+        other_df_models: Optional[list] = None,
+        model_names: Optional[list] = None,
+        cutpoints: Optional[list] = None,
+        num_interpolations: Optional[int] = None,
         labelling_gap: float = 0.05,
         synthetic_data=None,
         synthetic_data_samples: int = int(1e6),
         observation=None,
         plot_baseline: bool = True,
         # Plotting parameters below:
-        x_range: tuple = None,
-        y_range: tuple = None,
-        plot_y_label: str = None,
-        plot_title: str = None,
+        x_range: Optional[tuple] = None,
+        y_range: Optional[tuple] = None,
+        plot_y_label: Optional[str] = None,
+        plot_title: Optional[str] = None,
         figsize=None,
         density_transparency: float = 1.0,
         shap_fontsize: int = 25,
@@ -294,7 +293,7 @@ class DRNExplainer:
         cutpoints_label_bool=False,
         synthetic_data=None,
         plot_adjustments_labels=True,
-        axes: plt.Axes = None,
+        axes: Optional[plt.Axes] = None,
         x_range=None,
         y_range=None,
         plot_title=None,
@@ -791,8 +790,8 @@ class DRNExplainer:
         axes=None,
         top_K_features: int = 3,
         # Plot styling parameters grouped at the end
-        y_max: float = None,
-        y_min: float = None,
+        y_max: Optional[float] = None,
+        y_min: Optional[float] = None,
         labelling_gap: float = 0.05,
         fontsize: int = 25,
     ):
@@ -1169,7 +1168,7 @@ class DRNExplainer:
 
         return adjustment_idx
 
-    def real_adjustment_factors(self, instances, cutpoints) -> torch.tensor:
+    def real_adjustment_factors(self, instances, cutpoints) -> torch.Tensor:
         """
         Calculate the real adjustment factors.
         """
