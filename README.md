@@ -1,5 +1,32 @@
 # drn - A Python Package for Distributional Refinement Network (DRN)
 
+## Minimal working example
+
+This section provides a minimal working example of how to use the `drn` package to train a Distributional Refinement Network (DRN) on a synthetic dataset.
+
+```python
+from drn import GLM, DRN, drn_cutpoints, train
+import pandas as pd
+import torch
+
+DATA_URL = "https://raw.githubusercontent.com/agi-lab/DRN/refs/heads/main/data/processed/synth/"
+X_train = torch.Tensor(pd.read_csv(DATA_URL + "x_train.csv").values)
+X_val = torch.Tensor(pd.read_csv(DATA_URL + "x_val.csv").values)
+y_train = torch.Tensor(pd.read_csv(DATA_URL + "y_train.csv").values).flatten()
+y_val = torch.Tensor(pd.read_csv(DATA_URL + "y_val.csv").values).flatten()
+train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
+val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
+
+c_0, c_K = 0, y_train.max().item() * 1.1
+cutpoints = drn_cutpoints(c_0, c_K, proportion=0.1, y=y_train)
+glm = GLM.from_statsmodels(X_train, y_train, distribution="gamma")
+
+drn_model = DRN(X_train.shape[1], cutpoints, glm, hidden_size=128, num_hidden_layers=2)
+train(drn_model, train_dataset, val_dataset, batch_size=256, epochs=10)
+```
+
+Read on for more details on how to use the `drn` package, including installation instructions, examples of training a DRN, and how to interpret the results.
+
 ## Table of Contents  
 - [Overview](#overview) 
 - [Key Features](#key-features)
