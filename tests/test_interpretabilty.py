@@ -4,6 +4,9 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 import numpy as np
 import pandas as pd
+import pytest
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import StandardScaler
 from synthetic_dataset import generate_synthetic_data
 
 from drn import *
@@ -26,11 +29,33 @@ def test_plot_adjustment_factors():
     drn = DRN(glm, cutpoints)
     train(drn, train_dataset, val_dataset, epochs=2)
 
-    drn_explainer = DRNExplainer(drn, glm, cutpoints, x_train, cat_features=[])
+    # Make a column transformer that standardizes the data
+    preprocessor = ColumnTransformer(
+        transformers=[("num", StandardScaler(), ["X_0", "X_1", "X_2", "X_3"])]
+    )
+    preprocessor.fit(x_train)
 
+    drn_explainer = DRNExplainer(
+        drn, glm, cutpoints, x_train, preprocessor=preprocessor
+    )
+
+    # Put in a DataFrame with different columns as x_train
     instance = pd.DataFrame(
         np.array([[0.0, 1.0, 2.0, 3.0]]), columns=["X_1", "X_2", "X_3", "X_4"]
     )
+
+    with pytest.raises(ValueError, match="X_0"):
+        _ = drn_explainer.preprocessor.transform(instance)
+
+    instance.columns = ["X_0", "X_1", "X_2", "X_3"]
+    _ = drn_explainer.preprocessor.transform(instance)
+    assert hasattr(drn_explainer.preprocessor, "feature_names_in_")
+
+    # Check that the default drn_explainer.preprocessor.transform works with DataFrame and has a feature_names_in attribute
+    drn_explainer = DRNExplainer(drn, glm, cutpoints, x_train)
+
+    transformed_instance_df = drn_explainer.preprocessor.transform(instance)
+    assert hasattr(drn_explainer.preprocessor, "feature_names_in_")
 
     drn_explainer.plot_adjustment_factors(
         instance,

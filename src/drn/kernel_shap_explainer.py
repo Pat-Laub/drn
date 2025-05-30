@@ -20,8 +20,7 @@ class KernelSHAP_DRN:
         self,
         explaining_data,
         nsamples_background_fraction,
-        background_data_df_before_one_hot: pd.DataFrame,
-        one_hot_encoder,
+        background_data_raw: pd.DataFrame,
         value_function,
         glm_value_function,
         other_shap_values=None,
@@ -30,21 +29,16 @@ class KernelSHAP_DRN:
         """
         Args:
         See the DRNExplainer class for explanations regarding
-        {explaining_data, nsamples_background_fraction, background_data_df_before_one_hot, one_hot_encoder}
+        {explaining_data, nsamples_background_fraction, background_data_raw, preprocessor}
         value_function: v_{M}(S, x), given any instance x and indices S \\subseteq \\{1, ..., p\\}
         """
-        super(KernelSHAP_DRN, self).__init__()
-        self.background_data_df_before_one_hot = background_data_df_before_one_hot
+        self.background_data_raw = background_data_raw
         self.value_function = value_function
         self.explaining_data = explaining_data
         self.other_shap_values = other_shap_values
-        self.feature_names = self.background_data_df_before_one_hot.columns
-        self.one_hot_encoder = one_hot_encoder
+        self.feature_names = self.background_data_raw.columns
         sample_size = int(
-            np.round(
-                self.background_data_df_before_one_hot.shape[0]
-                * nsamples_background_fraction
-            )
+            np.round(self.background_data_raw.shape[0] * nsamples_background_fraction)
         )
 
         if self.other_shap_values is None:
@@ -53,7 +47,7 @@ class KernelSHAP_DRN:
             kernel_shap_explainer = shap.KernelExplainer(
                 self.value_function,
                 shap.sample(
-                    self.background_data_df_before_one_hot,
+                    self.background_data_raw,
                     nsamples=sample_size,
                     random_state=random_state,
                 ),
@@ -69,7 +63,7 @@ class KernelSHAP_DRN:
                 kernel_shap_explainer_glm = shap.KernelExplainer(
                     self.glm_value_function,
                     shap.sample(
-                        self.background_data_df_before_one_hot,
+                        self.background_data_raw,
                         nsamples=sample_size,
                         random_state=random_state,
                     ),
@@ -210,11 +204,7 @@ class KernelSHAP_DRN:
         features: a list of feature names required for plotting
         adjusting: False --> explaining the drn model; True --> explaining how the drn adjusts the glm
         """
-        features = (
-            self.background_data_df_before_one_hot.columns
-            if features is None
-            else features
-        )
+        features = self.background_data_raw.columns if features is None else features
         features_idx = [
             np.where(self.feature_names == feature)[0][0]
             for feature in features
@@ -235,11 +225,7 @@ class KernelSHAP_DRN:
         """
         Creates a global importance plot based on the absolute SHAP values.
         """
-        features = (
-            self.background_data_df_before_one_hot.columns
-            if features is None
-            else features
-        )
+        features = self.background_data_raw.columns if features is None else features
         features_idx = [
             np.where(self.feature_names == feature)[0][0]
             for feature in features

@@ -4,6 +4,7 @@ from typing import Optional
 import matplotlib.pyplot as plt
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import seaborn as sns
 import torch
@@ -14,6 +15,8 @@ from .models.glm import GLM
 from .models.drn import DRN
 from .kernel_shap_explainer import KernelSHAP_DRN
 
+from sklearn.preprocessing import FunctionTransformer
+
 
 class DRNExplainer:
     def __init__(
@@ -21,10 +24,8 @@ class DRNExplainer:
         drn: DRN,
         glm: GLM,
         default_cutpoints: list,
-        background_data_df_before_one_hot: pd.DataFrame,
-        cat_features: list,
-        all_categories: Optional[list] = None,
-        column_transformer: Optional[ColumnTransformer] = None,
+        background_data_raw: pd.DataFrame,
+        preprocessor: Optional[ColumnTransformer] = None,
     ):
         """
         Initialise the DRNExplainer with the given parameters.
@@ -33,43 +34,25 @@ class DRNExplainer:
             drn (torch.nn.Module): The DRN neural network model.
             glm (torch.nn.Module): The baseline Generalised Linear Model (GLM).
             default_cutpoints (list): Cutpoints used for training the DRN.
-            background_data_df_before_one_hot (pd.DataFrame): Background data prior to one-hot encoding.
-            cat_features (list): List of categorical features.
-            all_categories (list, optional): List of all categories of the categorical features, if available.
-            column_transformer (ColumnTransformer, optional): Preprocessor for numerical features.
+            background_data_raw (pd.DataFrame): Background data prior to preprocessing,
+            preprocessor (ColumnTransformer, optional): To convert raw data into a format suitable for the DRN.
         """
-
-        super().__init__()  # Initialize the superclass. Needed if the superclass has an __init__ to run.
-
-        # Assign the provided arguments to instance variables.
-        self.drn = drn  # The DRN model.
-        self.glm = glm  # The baseline GLM model.
+        self.drn = drn
+        self.glm = glm
         self.default_cutpoints = (
             default_cutpoints  # Cutpoints for feature partitioning.
         )
-        self.column_transformer = (
-            column_transformer  # Transformer for scaling numerical features.
-        )
+        if preprocessor is not None:
+            self.preprocessor = preprocessor
+        else:
+            self.preprocessor = FunctionTransformer(func=lambda x: x, validate=False)
+            self.preprocessor.feature_names_in_ = background_data_raw.columns
 
         # Store the raw data and features information.
-        self.background_data_df_before_one_hot = (
-            background_data_df_before_one_hot  # Data before one-hot encoding.
+        self.background_data_raw = background_data_raw
+        self.background_data: torch.Tensor = self._to_tensor(
+            self.preprocessor.transform(background_data_raw)
         )
-        self.cat_features = cat_features  # Categorical feature names.
-        self.all_categories = (
-            all_categories  # Categories for all features if available.
-        )
-
-        # One-hot encode background data if categories are provided, else store it as is.
-        self.background_data_df = (
-            self.one_hot_encoder(self.background_data_df_before_one_hot)
-            if self.all_categories is not None
-            else self.background_data_df_before_one_hot
-        )
-
-        self.background_data_tensor = self._to_tensor(
-            self.background_data_df
-        )  # Convert the data to a PyTorch tensor.
 
     def plot_dp_adjustment_shap(
         self,
@@ -123,11 +106,11 @@ class DRNExplainer:
             shap_fontsize, figsize, label_adjustment_factor: Plot styling parameters.
             legend_loc: Location of the legend in the plot.
         """
+
         alpha = density_transparency
 
         # Prepare data for plotting: One-hot encode the input and convert to a tensor.
-        print("f", instance_raw)
-        instance = self._to_tensor(self.one_hot_encoder(instance_raw))
+        instance = self._to_tensor(self.preprocessor.transform(instance_raw))
 
         # Use default cutpoints unless explicitly provided.
         cutpoints = self.default_cutpoints if cutpoints is None else cutpoints
@@ -312,11 +295,7 @@ class DRNExplainer:
         cutpoints = self.default_cutpoints if cutpoints is None else cutpoints
         c_0 = self.default_cutpoints[0]
         c_K = self.default_cutpoints[-1]
-        instance = (
-            self._to_tensor(self.one_hot_encoder(instance))
-            if self.all_categories is not None
-            else self._to_tensor(instance)
-        )
+        instance = self._to_tensor(self.preprocessor.transform(instance))
 
         # If we are plotting concerning quantiles
         if percentiles is not None:
@@ -641,7 +620,7 @@ class DRNExplainer:
 
     def cdf_plot(
         self,
-        instance,
+        instance: pd.DataFrame,
         grid=None,
         cutpoints=None,
         other_df_models=None,
@@ -670,11 +649,9 @@ class DRNExplainer:
         # Default cutpoints and num_interpolations setup
         cutpoints = self.default_cutpoints if cutpoints is None else cutpoints
         instance_raw = instance
-        instance = (
-            self._to_tensor(self.one_hot_encoder(instance))
-            if self.all_categories is not None
-            else self._to_tensor(instance)
-        )
+
+        instance = self._to_tensor(self.preprocessor.transform(instance))
+
         # Interpolation
         lower_cutpoint = x_range[0] if x_range is not None else cutpoints[0]
         upper_cutpoint = x_range[1] if x_range is not None else cutpoints[-1]
@@ -1026,7 +1003,7 @@ class DRNExplainer:
 
     def kernel_shap(
         self,
-        explaining_data,
+        explaining_data: pd.DataFrame,
         distributional_property,
         adjustment=True,
         nsamples_background_fraction=1.0,
@@ -1068,8 +1045,7 @@ class DRNExplainer:
         return KernelSHAP_DRN(
             explaining_data,
             nsamples_background_fraction,
-            self.background_data_df_before_one_hot,
-            self.one_hot_encoder,
+            self.background_data_raw,
             value_function,
             glm_value_function if glm_output else None,
             other_shap_values,
@@ -1113,7 +1089,7 @@ class DRNExplainer:
         )
         factor_background = np.mean(
             self.real_adjustment_factors(
-                self.background_data_tensor, [region_start, region_end]
+                self.background_data, [region_start, region_end]
             )
             .detach()
             .numpy(),
@@ -1197,67 +1173,20 @@ class DRNExplainer:
             device=next(self.glm.parameters()).device,
         )
 
-    def one_hot_encoder(self, instances):
-        """
-        Apply one-hot encoding to categorical features, considering all possible categories from self.all_categories
-        """
-        # if self.column_transformer is not None:
-        #     self.column_transformer.fit_transform(self.background_data_df_before_one_hot)
-        #     instances = (self.column_transformer.transform(pd.DataFrame(instances,\
-        #                      columns = self.background_data_df_before_one_hot.columns)))
-
-        instances = pd.DataFrame(
-            instances, columns=self.background_data_df_before_one_hot.columns
-        )
-
-        if self.cat_features:
-            for feature in self.cat_features:
-                instances[feature] = pd.Categorical(
-                    instances[feature], categories=self.all_categories[feature]
-                )
-
-            instances = pd.get_dummies(instances, columns=self.cat_features).astype(
-                float
-            )
-
-        if self.column_transformer is not None:
-            background_df_one_hot = pd.get_dummies(
-                self.background_data_df_before_one_hot, columns=self.cat_features
-            ).astype(float)
-            self.column_transformer.fit_transform(background_df_one_hot)
-            instances = self.column_transformer.transform(instances)
-            return instances
-
-        else:
-            return instances.values
-        #     instances = pd.DataFrame(instances, columns = background_df_one_hot.columns)
-        # else:
-        #     instances = pd.DataFrame(instances, columns = self.background_data_df_before_one_hot.columns)
-
-        # return(instances.values)
-
-    def mean_drn(self, instances):
+    def mean_drn(self, instances: npt.NDArray):
         """
         Calculate the mean predicted by the DRN network given the selected instances/features
         """
-        instances = (
-            self._to_tensor(self.one_hot_encoder(instances))
-            if self.all_categories is not None
-            else self._to_tensor(instances)
-        )
-
+        instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
+        instances = self._to_tensor(self.preprocessor.transform(instances))
         return self.drn.distributions(instances).mean.detach().numpy()
 
-    def mean_glm(self, instances):
+    def mean_glm(self, instances: npt.NDArray):
         """
         Calculate the mean predicted by the GLM given the selected instances/features
         """
-        instances = (
-            self._to_tensor(self.one_hot_encoder(instances))
-            if self.all_categories is not None
-            else self._to_tensor(instances)
-        )
-
+        instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
+        instances = self._to_tensor(self.preprocessor.transform(instances))
         return self.glm.distributions(instances).mean.detach().numpy()
 
     def mean_value_function(self, instances, adjustment):
@@ -1270,7 +1199,7 @@ class DRNExplainer:
             else self.mean_drn(instances)
         )
 
-    def quantile_drn(self, instances, percentile=[90], grid=None):
+    def quantile_drn(self, instances: npt.NDArray, percentile=[90], grid=None):
         """
         Calculate the quantile predicted by the DRN network given the selected instances/features
         """
@@ -1282,11 +1211,8 @@ class DRNExplainer:
             else grid
         )
 
-        instances = (
-            self._to_tensor(self.one_hot_encoder(instances))
-            if self.all_categories is not None
-            else self._to_tensor(instances)
-        )
+        instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
+        instances = self._to_tensor(self.preprocessor.transform(instances))
 
         return (
             self.drn.distributions(instances)
@@ -1295,7 +1221,7 @@ class DRNExplainer:
             .numpy()
         )
 
-    def quantile_glm(self, instances, percentile=[90], grid=None):
+    def quantile_glm(self, instances: npt.NDArray, percentile=[90], grid=None):
         """
         Calculate the quantile predicted by the GLM given the selected instances/features
         """
@@ -1306,12 +1232,8 @@ class DRNExplainer:
             if grid is None
             else grid
         )
-
-        instances = (
-            self._to_tensor(self.one_hot_encoder(instances))
-            if self.all_categories is not None
-            else self._to_tensor(instances)
-        )
+        instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
+        instances = self._to_tensor(self.preprocessor.transform(instances))
         return (
             self.glm.quantiles(instances, percentile, l=grid[0], u=grid[-1] * 1.5)
             .detach()
