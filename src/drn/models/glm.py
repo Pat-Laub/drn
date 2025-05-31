@@ -223,18 +223,13 @@ class GLM(BaseModel):
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        if self.distribution == "gamma":
-            quantiles = [
-                self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
-                for percentile in percentiles
-            ]
-        elif self.distribution == "gaussian":
-            quantiles = [
-                self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
-                for percentile in percentiles
-            ]
-        else:
+        if self.distribution not in ["gamma", "gaussian", "lognormal", "inversegaussian"]:
             raise ValueError(f"Unsupported model type: {self.distribution}")
+        
+        quantiles = [
+            self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
+            for percentile in percentiles
+        ]
         return torch.stack(quantiles, dim=1)[0]
 
     def quantiles_old(
