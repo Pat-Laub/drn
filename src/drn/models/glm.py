@@ -1,34 +1,40 @@
 from typing import Optional, Union
-
+import math
 import numpy as np
 import torch
 import torch.nn as nn
-
 import statsmodels.api as sm
-from statsmodels.genmod.families import Gaussian, Gamma
+from statsmodels.genmod.families import Gaussian, Gamma, InverseGaussian
 from .base import BaseModel
 
 
 class GLM(BaseModel):
-    """
-    A base PyTorch model representing a generalized linear model.
-    This class is extended by specific distribution types like Gamma or Gaussian.
-    """
-
-    def __init__(self, p: int, distribution: str, learning_rate=1e-3):
-        """
-        Args:
-            p: the number of features in the model
-            distribution: the type of GLM ('gamma' or 'gaussian')
-        """
-        if not distribution in ("gamma", "gaussian"):
+    def __init__(
+        self,
+        p: int,
+        distribution: str,
+        learning_rate=1e-3,
+        default: bool = False,
+        null_model: bool = False,
+    ):
+        if distribution not in ("gamma", "gaussian", "inversegaussian", "lognormal"):
             raise ValueError(f"Unsupported model type: {distribution}")
 
         super(GLM, self).__init__()
         self.p = p
         self.distribution = distribution
-        self.linear = nn.Linear(p, 1)
-        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
+        self.linear = nn.Linear(p, 1, bias=True)
+
+        if default or null_model:
+            # Set weights and bias to zero
+            self.linear.weight.data.fill_(0.0)
+            self.linear.bias.data.fill_(0.0)
+            # Set default dispersion to 1 for numerical stability
+            self.dispersion = nn.Parameter(torch.tensor(1.0), requires_grad=False)
+        else:
+            # Dispersion not set until model is trained
+            self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
+
         self.loss_fn = (
             gaussian_deviance_loss
             if distribution == "gaussian"
@@ -41,18 +47,8 @@ class GLM(BaseModel):
         X: Union[np.ndarray, torch.Tensor],
         y: Union[np.ndarray, torch.Tensor],
         distribution: str,
+        null_model: bool = False,
     ):
-        """
-        Fit a GLM using statsmodels and initialize a PyTorch GLM model with the fitted parameters.
-
-        Args:
-            X: The feature matrix.
-            y: The target vector.
-            distribution: The type of distribution ('gamma' or 'gaussian').
-
-        Returns:
-            An instance of the PyTorch GLM class with parameters initialized to those estimated by statsmodels.
-        """
         p = X.shape[1]
 
         if isinstance(X, torch.Tensor) and isinstance(y, torch.Tensor):
@@ -62,11 +58,20 @@ class GLM(BaseModel):
         else:
             device = None
 
-        # Choose the correct family based on the distribution
+        if distribution == "lognormal":
+            y = np.log(y)
+        # Create null model (intercept only)
+        # if null_model:
+        #     X = np.ones((X.shape[0], 1))  # Only intercept
+        #     p = 1  # Single coefficient (intercept)
+
+        # Choose the correct family
         if distribution == "gamma":
             family = Gamma(link=sm.families.links.Log())
-        elif distribution == "gaussian":
+        elif distribution in ["gaussian", "lognormal"]:
             family = Gaussian()
+        elif distribution == "inversegaussian":
+            family = InverseGaussian(link=sm.families.links.Log())
 
         # Fit the GLM model
         model = sm.GLM(y, sm.add_constant(X), family=family)
@@ -75,19 +80,23 @@ class GLM(BaseModel):
         if not isinstance(results.params, np.ndarray):
             betas = np.asarray(betas)
 
-        # Create a new PyTorch GLM instance
+        # Create PyTorch GLM instance
         torch_glm = GLM(p, distribution)
-        torch_glm.linear.weight.data = torch.tensor(
-            betas[1:], dtype=torch.float32
-        ).unsqueeze(0)
+        torch_glm.linear.weight.data = (
+            torch.tensor(betas[1:], dtype=torch.float32).unsqueeze(0)
+            if not null_model
+            else torch.zeros((1, p))
+        )
         torch_glm.linear.bias.data = torch.tensor([betas[0]], dtype=torch.float32)
 
-        # Set additional parameters if needed
+        # Set dispersion parameter
         if distribution == "gamma":
             disp = results.scale.item()
-        elif distribution == "gaussian":
-            # Standard deviation is the square root of the scale parameter
+        elif distribution == "inversegaussian":
+            disp = results.scale.item()
+        elif distribution in ["gaussian", "lognormal"]:
             disp = (results.scale**0.5).item()
+
         torch_glm.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
 
         if device:
@@ -96,13 +105,9 @@ class GLM(BaseModel):
         return torch_glm
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        if self.distribution == "gamma":
-            out = torch.exp(self.linear(x)).squeeze(-1)
-        else:
-            out = self.linear(x).squeeze(-1)
-
-        assert out.shape == torch.Size([x.shape[0]])
-        return out
+        if self.distribution in ["gamma", "inversegaussian"]:
+            return torch.exp(self.linear(x)).squeeze(-1)
+        return self.linear(x).squeeze(-1)
 
     def clone(self) -> "GLM":
         """
@@ -112,23 +117,22 @@ class GLM(BaseModel):
         glm.load_state_dict(self.state_dict())
         return glm
 
-    def distributions(
-        self, x: torch.Tensor
-    ) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
-        """
-        Create distributional forecasts for the given inputs, specific to the model type.
-        """
+    def distributions(self, x: torch.Tensor):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
         if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)
+        elif self.distribution == "inversegaussian":
+            return InverseGaussianTorch(self.forward(x), self.dispersion)
+        elif self.distribution == "lognormal":
+            return torch.distributions.LogNormal(self.forward(x), self.dispersion)
         else:
             return torch.distributions.Normal(self.forward(x), self.dispersion)
 
-    def loss(self, x, y):
-        return self.loss_fn(self.forward(x), y)
+    def loss(self, X: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        return self.loss_fn(self.forward(X), y)
 
     def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
@@ -324,11 +328,56 @@ def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor) -> float:
 
 def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p: int):
     """
-    Estimate the dispersion parameter for the given distribution.
+    Estimate the dispersion parameter for different distributions.
+
+    Parameters:
+    distribution (str): The type of distribution ("gamma", "gaussian", "inversegaussian").
+    mu (torch.Tensor): The predicted mean values.
+    y (torch.Tensor): The observed target values.
+    p (int): The number of model parameters.
+
+    Returns:
+    torch.Tensor: The estimated dispersion parameter.
     """
     if distribution == "gamma":
         return gamma_estimate_dispersion(mu, y, p)
     elif distribution == "gaussian":
         return gaussian_estimate_sigma(mu, y)
+    elif distribution == "inversegaussian":
+        return inversegaussian_estimate_dispersion(mu, y, p)
     else:
         raise ValueError(f"Unsupported distribution: {distribution}")
+
+
+def inversegaussian_estimate_dispersion(
+    mu: torch.Tensor, y: torch.Tensor, p: int
+) -> float:
+    n = mu.shape[0]
+    dof = n - (p + 1)
+    return (torch.sum(((y - mu) ** 2) / (mu**3)) / dof).item()
+
+
+class InverseGaussianTorch:
+    def __init__(self, mean: torch.Tensor, dispersion: torch.Tensor):
+        self.mean = mean
+        self.dispersion = dispersion
+
+    def log_prob(self, y: torch.Tensor) -> torch.Tensor:
+        term1 = -0.5 * torch.log(2 * torch.pi * self.dispersion * y**3)
+        term2 = -((y - self.mean) ** 2) / (2 * self.dispersion * y * self.mean**2)
+        return term1 + term2
+
+    def mean(self) -> torch.Tensor:
+        return self.mean
+
+    def cdf(self, y: torch.Tensor) -> torch.Tensor:
+        phi = self.dispersion
+        mu = self.mean
+        sqrt_term = torch.sqrt(1 / (phi * y))
+        term1 = 0.5 * (1 + torch.erf((y - mu) * sqrt_term / math.sqrt(2)))
+        term2 = (
+            torch.exp(2 * mu / phi)
+            * 0.5
+            * (1 + torch.erf((-y - mu) * sqrt_term / math.sqrt(2)))
+        )
+        return term1 + term2
