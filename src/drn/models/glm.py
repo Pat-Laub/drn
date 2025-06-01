@@ -1,10 +1,11 @@
-from typing import Optional, Union
-import math
+from typing import Union
+
 import numpy as np
+import statsmodels.api as sm
 import torch
 import torch.nn as nn
-import statsmodels.api as sm
-from statsmodels.genmod.families import Gaussian, Gamma, InverseGaussian
+from statsmodels.genmod.families import Gamma, Gaussian, InverseGaussian
+
 from .base import BaseModel
 
 
@@ -223,9 +224,14 @@ class GLM(BaseModel):
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        if self.distribution not in ["gamma", "gaussian", "lognormal", "inversegaussian"]:
+        if self.distribution not in [
+            "gamma",
+            "gaussian",
+            "lognormal",
+            "inversegaussian",
+        ]:
             raise ValueError(f"Unsupported model type: {self.distribution}")
-        
+
         quantiles = [
             self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
             for percentile in percentiles
@@ -352,27 +358,29 @@ def inversegaussian_estimate_dispersion(
     return (torch.sum(((y - mu) ** 2) / (mu**3)) / dof).item()
 
 
-class InverseGaussianTorch:
+class InverseGaussianTorch(torch.distributions.Distribution):
     def __init__(self, mean: torch.Tensor, dispersion: torch.Tensor):
-        self.mean = mean
+        self.mu = mean
         self.dispersion = dispersion
 
     def log_prob(self, y: torch.Tensor) -> torch.Tensor:
         term1 = -0.5 * torch.log(2 * torch.pi * self.dispersion * y**3)
-        term2 = -((y - self.mean) ** 2) / (2 * self.dispersion * y * self.mean**2)
+        term2 = -((y - self.mu) ** 2) / (2 * self.dispersion * y * self.mu**2)
         return term1 + term2
 
+    @property
     def mean(self) -> torch.Tensor:
-        return self.mean
+        return self.mu
 
     def cdf(self, y: torch.Tensor) -> torch.Tensor:
-        phi = self.dispersion
-        mu = self.mean
-        sqrt_term = torch.sqrt(1 / (phi * y))
-        term1 = 0.5 * (1 + torch.erf((y - mu) * sqrt_term / math.sqrt(2)))
-        term2 = (
-            torch.exp(2 * mu / phi)
-            * 0.5
-            * (1 + torch.erf((-y - mu) * sqrt_term / math.sqrt(2)))
-        )
+        lambda_ = 1.0 / self.dispersion
+
+        sqrt_term = torch.sqrt(lambda_ / y)
+        z1 = sqrt_term * (y / self.mu - 1.0)
+        z2 = -sqrt_term * (y / self.mu + 1.0)
+
+        standard_normal = torch.distributions.Normal(0.0, 1.0)
+        term1 = standard_normal.cdf(z1)
+        term2 = torch.exp(2.0 * lambda_ / self.mu) * standard_normal.cdf(z2)
+
         return term1 + term2
