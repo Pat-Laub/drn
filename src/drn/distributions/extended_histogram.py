@@ -217,3 +217,12 @@ class ExtendedHistogram(Distribution):
         ]
 
         return torch.stack(quantiles, dim=1)[0]
+
+    def __repr__(self):
+        base = self.baseline
+        return (
+            f"{self.__class__.__name__}("
+            f"baseline: {base}, "
+            f"cutpoints: {self.cutpoints.shape}, "
+            f"prob_masses: {self.prob_masses.shape})"
+        )

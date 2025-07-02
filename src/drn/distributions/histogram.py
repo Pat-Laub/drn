@@ -404,3 +404,6 @@ class Histogram(Distribution):
         ]
 
         return torch.stack(quantiles, dim=1)[0]
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}(cutpoints: {self.cutpoints.shape}, prob_masses: {self.prob_masses.shape})"
