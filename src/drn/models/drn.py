@@ -194,7 +194,7 @@ def drn_loss(
 
 def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list[float]:
     # Ensure cutpoints are sorted and unique to start with
-    cutpoints = sorted(list(np.unique(cutpoints)))
+    cutpoints = sorted(np.unique(cutpoints).tolist())
     assert len(cutpoints) >= 2
 
     new_cutpoints = [cutpoints[0]]  # Start with the first cutpoint
@@ -229,6 +229,6 @@ def drn_cutpoints(
     if num_cutpoints is None and proportion is not None:
         num_cutpoints = int(np.ceil(proportion * len(y)))
 
-    uniform_cutpoints = list(np.linspace(c_0, c_K, num_cutpoints))  # type: ignore
+    uniform_cutpoints = np.linspace(c_0, c_K, num_cutpoints).tolist()
 
     return merge_cutpoints(uniform_cutpoints, np.asarray(y), min_obs)
