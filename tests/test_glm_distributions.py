@@ -1,12 +1,12 @@
 import os
 import torch
-from synthetic_dataset import generate_synthetic_data
+from synthetic_dataset import generate_synthetic_tensordataset
 
 from drn import *
 
 
 def test_glm_mean():
-    X_train, Y_train, _, _ = generate_synthetic_data()
+    X_train, Y_train, _, _ = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
     glm = GLM(X_train.shape[1], distribution="gamma")
@@ -22,7 +22,7 @@ def test_glm_mean():
 
 
 def test_glm_save_load():
-    X_train, Y_train, _, _ = generate_synthetic_data()
+    X_train, Y_train, _, _ = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")

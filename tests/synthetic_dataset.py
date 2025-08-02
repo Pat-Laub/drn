@@ -32,6 +32,12 @@ def generate_synthetic_data(n=1000, seed=1):
         y_all[num_train : num_train + num_val],
     )
 
+    return x_train, y_train, x_val, y_val
+
+def generate_synthetic_tensordataset(n=1000, seed=1):
+
+    x_train, y_train, x_val, y_val = generate_synthetic_data(n, seed)
+
     if torch.cuda.is_available():
         device = torch.device("cuda:0")
     else:

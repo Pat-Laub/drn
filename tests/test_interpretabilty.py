@@ -7,14 +7,14 @@ import pandas as pd
 import pytest
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import StandardScaler
-from synthetic_dataset import generate_synthetic_data
+from synthetic_dataset import generate_synthetic_tensordataset
 
 from drn import *
 
 
 def test_plot_adjustment_factors():
 
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
     y_train = Y_train.cpu().numpy()
 
     x_train = pd.DataFrame(

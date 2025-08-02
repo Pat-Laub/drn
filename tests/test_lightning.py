@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import pandas as pd
 import lightning as L
-from synthetic_dataset import generate_synthetic_data
+from synthetic_dataset import generate_synthetic_tensordataset
 from drn import *
 import statsmodels.api as sm
 from statsmodels.genmod.families import Gamma
@@ -40,7 +40,7 @@ def check_crps(model, X_train, Y_train, grid_size=3000):
 
 def test_glm():
     print("\n\nTraining GLM with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
@@ -55,7 +55,7 @@ def test_glm():
 
 def test_cann():
     print("\n\nTraining CANN with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
@@ -73,7 +73,7 @@ def test_cann():
 
 def test_mdn():
     print("\n\nTraining MDN with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
@@ -87,7 +87,7 @@ def test_mdn():
 
 def test_ddr():
     print("\n\nTraining DDR with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
@@ -103,7 +103,7 @@ def test_ddr():
 
 def test_drn():
     print("\n\nTraining DRN with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
@@ -126,7 +126,7 @@ def test_drn():
 
 def test_torch():
     print("\n\nTraining DRN (Torch compatibility check) with Lightning\n")
-    X_train, Y_train, train_data, val_data = generate_synthetic_data()
+    X_train, Y_train, train_data, val_data = generate_synthetic_tensordataset()
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 

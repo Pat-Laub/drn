@@ -9,7 +9,7 @@ import pandas as pd
 import torch
 import statsmodels.api as sm
 from statsmodels.genmod.families import Gamma
-from synthetic_dataset import generate_synthetic_data
+from synthetic_dataset import generate_synthetic_tensordataset
 
 from drn import *
 
@@ -27,7 +27,7 @@ def check_crps(model, X_train, Y_train, grid_size=3000):
 
 def test_glm():
     print("\n\nTraining GLM\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
     glm = GLM(X_train.shape[1], distribution="gamma")
@@ -41,7 +41,7 @@ def test_glm():
 
 def test_glm_from_statsmodels():
     print("\n\nTraining GLM\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     # Construct GLM given training data in torch tensors
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
@@ -109,7 +109,7 @@ def test_glm_from_statsmodels():
 
 def test_cann():
     print("\n\nTraining CANN\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(2)
     glm = GLM(X_train.shape[1], distribution="gamma")
@@ -125,7 +125,7 @@ def test_cann():
 
 def test_mdn():
     print("\n\nTraining MDN\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(3)
     mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma")
@@ -148,7 +148,7 @@ def setup_cutpoints(Y_train):
 
 def test_ddr():
     print("\n\nTraining DDR\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     cutpoints_ddr = setup_cutpoints(Y_train)
 
@@ -161,7 +161,7 @@ def test_ddr():
 
 def test_drn():
     print("\n\nTraining DRN\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
     y_train = Y_train.cpu().numpy()
 
     cutpoints_ddr = setup_cutpoints(Y_train)
@@ -204,7 +204,7 @@ def test_drn():
 
 
 def test_torch():
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_data()
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     cutpoints = setup_cutpoints(Y_train)
 
@@ -217,15 +217,17 @@ def test_torch():
 
     # Calculate the expected number of weights & biases given two layers of hs hidden units
     expected_num_weights = hs * X_train.shape[1] + hs + hs * hs + hs
-    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
+    num_weights = sum([p.numel() for p in drn._hidden_layers.parameters()])
     assert num_weights == expected_num_weights
 
     # Try again using np.int64 instead of ints for the hyperparameters
     drn = DRN(glm, cutpoints, num_hidden_layers=np.int64(2), hidden_size=np.int64(hs))
-    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
-    assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
+    
 
     train(drn, train_dataset, val_dataset, epochs=2)
+
+    num_weights = sum([p.numel() for p in drn._hidden_layers.parameters()])
+    assert num_weights == expected_num_weights and len(drn._hidden_layers) // 3 == 2
 
     # Check dropout is working as intended
     drn = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs, dropout_rate=0.5)
