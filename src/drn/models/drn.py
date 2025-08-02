@@ -33,6 +33,7 @@ class DRN(BaseModel):
             num_hidden_layers: Number of hidden layers in the DRN network.
             hidden_size: Number of neurons in each hidden layer.
         """
+        self.save_hyperparameters()
         super(DRN, self).__init__()
         self.glm = glm.clone()
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)

@@ -217,17 +217,16 @@ def test_torch():
 
     # Calculate the expected number of weights & biases given two layers of hs hidden units
     expected_num_weights = hs * X_train.shape[1] + hs + hs * hs + hs
-    num_weights = sum([p.numel() for p in drn._hidden_layers.parameters()])
+    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
     assert num_weights == expected_num_weights
 
     # Try again using np.int64 instead of ints for the hyperparameters
     drn = DRN(glm, cutpoints, num_hidden_layers=np.int64(2), hidden_size=np.int64(hs))
-    
 
     train(drn, train_dataset, val_dataset, epochs=2)
 
-    num_weights = sum([p.numel() for p in drn._hidden_layers.parameters()])
-    assert num_weights == expected_num_weights and len(drn._hidden_layers) // 3 == 2
+    num_weights = sum([p.numel() for p in drn.hidden_layers.parameters()])
+    assert num_weights == expected_num_weights and len(drn.hidden_layers) // 3 == 2
 
     # Check dropout is working as intended
     drn = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs, dropout_rate=0.5)

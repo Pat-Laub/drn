@@ -24,6 +24,7 @@ class DDR(BaseModel):
             num_hidden_layers: The number of hidden layers in the network.
             hidden_size: The number of neurons in each hidden layer.
         """
+        self.save_hyperparameters()
         super(DDR, self).__init__()
         self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         self.p = p

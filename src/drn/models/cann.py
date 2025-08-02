@@ -36,6 +36,8 @@ class CANN(BaseModel):
             hidden_size: the number of neurons in each hidden layer
             train_glm: whether to retrain the GLM or not
         """
+        self.save_hyperparameters()
+
         if not glm.distribution in ("gamma", "gaussian"):
             raise ValueError(f"Unsupported model type: {glm.distribution}")
 

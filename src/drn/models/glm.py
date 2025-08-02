@@ -18,6 +18,8 @@ class GLM(BaseModel):
         default: bool = False,
         null_model: bool = False,
     ):
+        self.save_hyperparameters()
+
         if distribution not in ("gamma", "gaussian", "inversegaussian", "lognormal"):
             raise ValueError(f"Unsupported model type: {distribution}")
 

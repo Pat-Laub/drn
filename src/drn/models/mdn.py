@@ -32,6 +32,7 @@ class MDN(BaseModel):
             hidden_size: the number of neurons in each hidden layer.
             distribution: the type of distribution for the MDN ('gamma' or 'gaussian').
         """
+        self.save_hyperparameters()
         super(MDN, self).__init__()
         self.p = p
         self.num_components = num_components
