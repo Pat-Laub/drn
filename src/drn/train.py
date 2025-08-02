@@ -1,11 +1,13 @@
+from __future__ import annotations
 import copy
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import torch
 import torch.nn as nn
 from tqdm.auto import tqdm, trange
 
-from .models.base import BaseModel
+if TYPE_CHECKING:
+    from .models.base import BaseModel
 
 
 def train(
