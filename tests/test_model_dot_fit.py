@@ -19,6 +19,8 @@ from drn import (
     gamma_estimate_dispersion,
     merge_cutpoints,
     crps,
+    ddr_cutpoints,
+    drn_cutpoints,
 )
 
 
@@ -206,3 +208,132 @@ def test_torch_api():
     q1 = drn3(_to_tensor(X_train))[-1]
     q2 = drn3(_to_tensor(X_train))[-1]
     assert torch.allclose(q1, q2)
+
+
+def test_ddr_supplied_vs_default_cutpoints_equivalence():
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+    p = X_train.shape[1]
+    proportion = 0.1
+
+    # Compute what the default cutpoints *should* be
+    c0 = min(y_train.min() * 1.05, 0)
+    cK = y_train.max() * 1.05
+    expected_cps = ddr_cutpoints(c0, cK, proportion=proportion, n=len(y_train))
+
+    # 1) Model with SUPPLIED cutpoints
+    torch.manual_seed(42)
+    ddr_sup = DDR(p, cutpoints=expected_cps, proportion=proportion)
+    ddr_sup.fit(X_train, y_train, X_val, y_val, epochs=3)
+
+    # 2) Model with DEFAULT cutpoints
+    torch.manual_seed(42)
+    ddr_def = DDR(p, cutpoints=None, proportion=proportion)
+    ddr_def.fit(X_train, y_train, X_val, y_val, epochs=3)
+
+    # => their cutpoints should now be equal
+    assert torch.allclose(
+        ddr_sup.cutpoints, ddr_def.cutpoints
+    ), "Auto-generated cutpoints differ from manually supplied ones"
+
+    # => and all parameters should match
+    params_sup = dict(ddr_sup.named_parameters())
+    params_def = dict(ddr_def.named_parameters())
+    for name in params_sup:
+        p1, p2 = params_sup[name], params_def[name]
+        assert torch.allclose(p1, p2), f"Parameter {name} mismatch"
+
+    # => finally, they should give identical CRPS
+    check_crps(ddr_sup, X_train, y_train)
+    check_crps(ddr_def, X_train, y_train)
+
+
+def test_ddr_default_cutpoints_match_function():
+    # verify that DDR.fit actually uses ddr_cutpoints under the hood
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+    p = X_train.shape[1]
+    proportion = 0.2  # try a different proportion
+
+    # compute expected cutpoints
+    c0 = min(y_train.min() * 1.05, 0)
+    cK = y_train.max() * 1.05
+    expected = torch.Tensor(
+        ddr_cutpoints(c0, cK, proportion=proportion, n=len(y_train))
+    )
+
+    ddr = DDR(p, cutpoints=None, proportion=proportion)
+    # trigger auto-generation
+    ddr.fit(X_train, y_train, X_val, y_val, epochs=1)
+
+    assert torch.allclose(
+        ddr.cutpoints, expected
+    ), "DDR.fit did not generate cutpoints matching ddr_cutpoints()"
+
+
+def test_drn_supplied_vs_default_cutpoints_equivalence():
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+    p = X_train.shape[1]
+    proportion = 0.1
+    min_obs = 1
+
+    # Compute what the default DRN cutpoints should be:
+    c0 = min(y_train.min() * 1.05, 0)
+    cK = y_train.max() * 1.05
+    expected_cuts = drn_cutpoints(
+        c0, cK, y_train, proportion=proportion, min_obs=min_obs
+    )
+
+    # 1) DRN with SUPPLIED cutpoints
+    torch.manual_seed(123)
+    glm1 = GLM(p, distribution="gamma")
+    glm1.fit(X_train, y_train, X_val, y_val, epochs=3)
+    drn_sup = DRN(glm=glm1, cutpoints=expected_cuts)
+    drn_sup.fit(X_train, y_train, X_val, y_val, epochs=3)
+
+    # 2) DRN with DEFAULT cutpoints
+    torch.manual_seed(123)
+    glm2 = GLM(p, distribution="gamma")
+    glm2.fit(X_train, y_train, X_val, y_val, epochs=3)
+    drn_def = DRN(glm=glm2, cutpoints=None)
+    drn_def.fit(X_train, y_train, X_val, y_val, epochs=3)
+
+    # => their cutpoints should now be equal
+    assert torch.allclose(
+        drn_sup.cutpoints, drn_def.cutpoints
+    ), "Auto‐generated DRN cutpoints differ from manually supplied ones"
+
+    # => and all other parameters should match
+    sup_params = dict(drn_sup.named_parameters())
+    def_params = dict(drn_def.named_parameters())
+    for name in sup_params:
+        if name == "cutpoints":
+            continue
+        p1, p2 = sup_params[name], def_params[name]
+        assert torch.allclose(p1, p2), f"DRN parameter {name} mismatch"
+
+    # => finally, they should give identical CRPS
+    check_crps(drn_sup, X_train, y_train)
+    check_crps(drn_def, X_train, y_train)
+
+
+def test_drn_default_cutpoints_match_function():
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+    p = X_train.shape[1]
+    proportion = 0.2
+    min_obs = 3
+
+    # compute expected cutpoints via ddr_cutpoints + merge_cutpoints
+    c0 = min(y_train.min() * 1.05, 0)
+    cK = y_train.max() * 1.05
+    ddr_cps = ddr_cutpoints(c0, cK, proportion=proportion, n=len(y_train))
+    expected = torch.tensor(merge_cutpoints(ddr_cps, y_train, min_obs=min_obs))
+
+    # trigger auto-generation
+    glm = GLM(p, distribution="gamma")
+    glm.fit(X_train, y_train, X_val, y_val, epochs=1)
+
+    drn = DRN(glm=glm, cutpoints=None, proportion=proportion, min_obs=min_obs)
+    drn.fit(X_train, y_train, X_val, y_val, epochs=1)
+
+    assert torch.allclose(
+        drn.cutpoints, expected
+    ), "DRN.fit did not generate cutpoints matching merge_cutpoints(ddr_cutpoints(...))"

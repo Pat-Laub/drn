@@ -12,11 +12,13 @@ class DRN(BaseModel):
     def __init__(
         self,
         glm,
-        cutpoints,
+        cutpoints: Optional[list[float]] = None,
         num_hidden_layers=2,
         hidden_size=75,
         dropout_rate=0.2,
         baseline_start=False,
+        proportion=0.1,
+        min_obs=1,
         loss_metric="jbce",
         kl_alpha=0.0,
         mean_alpha=0.0,
@@ -36,7 +38,6 @@ class DRN(BaseModel):
         self.save_hyperparameters()
         super(DRN, self).__init__()
         self.glm = glm.clone()
-        self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
 
         for param in self.glm.parameters():
             param.requires_grad = False
@@ -53,13 +54,21 @@ class DRN(BaseModel):
 
         self.hidden_layers = nn.Sequential(*layers)
 
-        # Output layer
-        self.fc_output = nn.Linear(hidden_size, len(self.cutpoints) - 1)
+        if cutpoints is not None:
+            self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
+            self.fc_output = nn.Linear(hidden_size, len(self.cutpoints) - 1)
+            # Initialize weights and biases for fc_output to zero
+            if baseline_start:
+                nn.init.constant_(self.fc_output.weight, 0)
+                nn.init.constant_(self.fc_output.bias, 0)
 
-        # Initialize weights and biases for fc_output to zero
-        if baseline_start:
-            nn.init.constant_(self.fc_output.weight, 0)
-            nn.init.constant_(self.fc_output.bias, 0)
+        else:
+            self.cutpoints = None
+            self.fc_output = None
+            self.hidden_size = hidden_size
+            self.proportion = proportion
+            self.min_obs = min_obs
+            self.baseline_start = baseline_start
 
         self.loss_metric = loss_metric
         self.kl_alpha = kl_alpha
@@ -69,6 +78,21 @@ class DRN(BaseModel):
         self.kl_direction = kl_direction
         self.learning_rate = learning_rate
         self.debug = debug
+
+    def fit(self, X_train, y_train, *args, **kwargs):
+        if self.cutpoints is None:
+            c_0 = min(y_train.min().item() * 1.05, 0)
+            c_K = y_train.max().item() * 1.05
+            cutpoints = drn_cutpoints(
+                c_0, c_K, y_train, proportion=self.proportion, min_obs=self.min_obs
+            )
+            self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
+            self.fc_output = nn.Linear(self.hidden_size, len(self.cutpoints) - 1)
+            if self.baseline_start:
+                nn.init.constant_(self.fc_output.weight, 0)
+                nn.init.constant_(self.fc_output.bias, 0)
+
+        super().fit(X_train, y_train, *args, **kwargs)
 
     def log_adjustments(self, x):
         """
@@ -85,6 +109,11 @@ class DRN(BaseModel):
         return log_adjustments  # - torch.mean(log_adjustments, dim=1, keepdim=True)
 
     def forward(self, x):
+        if self.cutpoints is None or self.fc_output is None:
+            raise ValueError(
+                "Cutpoints must be defined before trying to make predictions."
+            )
+
         if self.debug:
             num_cutpoints = len(self.cutpoints)
             num_regions = len(self.cutpoints) - 1

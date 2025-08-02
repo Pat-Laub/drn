@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import torch
 import torch.nn as nn
@@ -10,10 +11,11 @@ class DDR(BaseModel):
     def __init__(
         self,
         p: int,
-        cutpoints,
+        cutpoints: Optional[list[float]] = None,
         num_hidden_layers=2,
         hidden_size=100,
         dropout_rate=0.2,
+        proportion=0.1,
         loss_metric="jbce",
         learning_rate=1e-3,
     ):
@@ -23,10 +25,10 @@ class DDR(BaseModel):
             cutpoints: The cutpoints for the DDR model.
             num_hidden_layers: The number of hidden layers in the network.
             hidden_size: The number of neurons in each hidden layer.
+
         """
         self.save_hyperparameters()
         super(DDR, self).__init__()
-        self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
         self.p = p
 
         layers = [
@@ -42,14 +44,33 @@ class DDR(BaseModel):
         # Use nn.Sequential to chain the layers together
         self.hidden_layers = nn.Sequential(*layers)
 
-        # Output layer for the pi values
-        self.pi = nn.Linear(hidden_size, len(self.cutpoints) - 1)
+        if cutpoints is not None:
+            self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
+            self.pi = nn.Linear(hidden_size, len(self.cutpoints) - 1)
+        else:
+            self.cutpoints = None
+            self.pi = None
+
+            self.hidden_size = hidden_size
+            self.proportion = proportion
 
         # Assert that loss_metric is either 'jbce' or 'nll'
         if loss_metric not in ["jbce", "nll"]:
             raise ValueError(f"Unsupported loss metric: {loss_metric}")
         self.loss_metric = loss_metric
         self.learning_rate = learning_rate
+
+    def fit(self, X_train, y_train, *args, **kwargs):
+        if self.cutpoints is None:
+            c_0 = min(y_train.min().item() * 1.05, 0)
+            c_K = y_train.max().item() * 1.05
+            cutpoints = ddr_cutpoints(
+                c_0=c_0, c_K=c_K, proportion=self.proportion, n=len(y_train)
+            )
+            self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
+            self.pi = nn.Linear(self.hidden_size, len(self.cutpoints) - 1)
+
+        super().fit(X_train, y_train, *args, **kwargs)
 
     def forward(self, x):
         """
@@ -59,6 +80,11 @@ class DDR(BaseModel):
         Returns:
             The cutpoints and probabilities for the DDR model.
         """
+        if self.cutpoints is None or self.pi is None:
+            raise ValueError(
+                "Cutpoints must be defined before trying to make predictions."
+            )
+
         # Pass input through the dynamically created hidden layers
         h = self.hidden_layers(x)
 
