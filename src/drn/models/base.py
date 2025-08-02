@@ -9,6 +9,10 @@ import lightning as L
 from torch.utils.data import DataLoader, TensorDataset
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
+from lightning.pytorch.utilities import disable_possible_user_warnings
+
+disable_possible_user_warnings()
+
 
 class BaseModel(L.LightningModule, abc.ABC):
     learning_rate: float
@@ -40,9 +44,9 @@ class BaseModel(L.LightningModule, abc.ABC):
     def fit(
         self,
         X_train: Union[pd.DataFrame, np.ndarray],
-        y_train: Union[pd.Series, np.ndarray],
+        y_train: Union[pd.DataFrame, pd.Series, np.ndarray],
         X_val: Optional[Union[pd.DataFrame, np.ndarray]] = None,
-        y_val: Optional[Union[pd.Series, np.ndarray]] = None,
+        y_val: Optional[Union[pd.DataFrame, pd.Series, np.ndarray]] = None,
         batch_size: int = 128,
         epochs: int = 10,
         patience: int = 5,
@@ -54,18 +58,14 @@ class BaseModel(L.LightningModule, abc.ABC):
         trainer_kwargs.setdefault("devices", 1)
         trainer_kwargs.setdefault("logger", False)
         trainer_kwargs.setdefault("deterministic", True)
+        trainer_kwargs.setdefault("enable_progress_bar", True)
+        trainer_kwargs.setdefault("enable_model_summary", True)
 
-        # Normalise inputs to numpy arrays
-        X_train_arr = np.asarray(X_train)
-        y_train_arr = np.asarray(y_train)
         has_val = X_val is not None and y_val is not None
-        if has_val:
-            X_val_arr = np.asarray(X_val)
-            y_val_arr = np.asarray(y_val)
 
         # Build training DataLoader
         train_tensor = TensorDataset(
-            torch.Tensor(X_train_arr), torch.Tensor(y_train_arr)
+            self._to_tensor(X_train), self._to_tensor(y_train).squeeze()
         )
         train_loader = DataLoader(train_tensor, batch_size=batch_size, shuffle=True)
 
@@ -78,7 +78,9 @@ class BaseModel(L.LightningModule, abc.ABC):
             return
 
         # Build validation DataLoader
-        val_tensor = TensorDataset(torch.Tensor(X_val_arr), torch.Tensor(y_val_arr))
+        val_tensor = TensorDataset(
+            self._to_tensor(X_val), self._to_tensor(y_val).squeeze()
+        )
         val_loader = DataLoader(val_tensor, batch_size=len(val_tensor), shuffle=False)
 
         if trainer_kwargs.get("enable_checkpointing") is False:
@@ -100,7 +102,7 @@ class BaseModel(L.LightningModule, abc.ABC):
                 mode="min",
             )
             early_cb = EarlyStopping(
-                monitor="val_loss", mode="min", patience=patience, verbose=True
+                monitor="val_loss", mode="min", patience=patience, verbose=False
             )
 
             trainer = L.Trainer(callbacks=[ckpt_cb, early_cb], **trainer_kwargs)
@@ -125,8 +127,6 @@ class BaseModel(L.LightningModule, abc.ABC):
         """
         if isinstance(arr, torch.Tensor):
             return arr
-        elif isinstance(arr, pd.DataFrame):
+        elif isinstance(arr, pd.DataFrame) or isinstance(arr, pd.Series):
             arr = arr.values
-        elif isinstance(arr, pd.Series):
-            arr = arr.values.reshape(-1, 1)
         return torch.Tensor(arr, device=self.device)

@@ -1,17 +1,33 @@
+from typing import Union
+import numpy as np
+import pandas as pd
 import torch
 
 
-def crps(obs: torch.Tensor, grid: torch.Tensor, cdf_on_grid: torch.Tensor):
+def _to_tensor(arr: Union[pd.DataFrame, pd.Series, np.ndarray]) -> torch.Tensor:
+    """Convert pandas or numpy array to float32 torch.Tensor."""
+    if isinstance(arr, (pd.DataFrame, pd.Series)):
+        vals = arr.values
+    else:
+        vals = arr
+    return torch.as_tensor(vals, dtype=torch.float32)
+
+
+def crps(
+    obs: Union[np.ndarray, pd.Series, torch.Tensor],
+    grid: torch.Tensor,
+    cdf_on_grid: torch.Tensor,
+):
     """
     Compute CRPS using the provided grid and CDF values with PyTorch tensors.
 
-    :param x: observed value(s) as a PyTorch tensor
-    :param y_grid: tensor of grid points
-    :param CDF_grid: tensor of corresponding CDF values or a 2D tensor where each column is a CDF
+    :param obs: observed value(s)
+    :param grid: a grid over y values
+    :param cdf_on_grid: tensor of corresponding CDF values or a 2D tensor where each column is a CDF
     :return: CRPS value(s) as a PyTorch tensor
     """
-
-    # Ensure x and CDF_grid are at least 1D and 2D tensors, respectively
+    # Ensure obs and cdf_on_grid are at least 1D and 2D tensors, respectively
+    obs = _to_tensor(obs)
     obs = obs.unsqueeze(0) if obs.ndim == 0 else obs
     cdf_on_grid = cdf_on_grid.unsqueeze(1) if cdf_on_grid.ndim == 1 else cdf_on_grid
     cdf_on_grid = cdf_on_grid.T

@@ -33,7 +33,7 @@ def _to_tensor(arr):
 
 def check_crps(model, X_train, y_train, grid_size=3000):
     X = _to_tensor(X_train)
-    Y = _to_tensor(y_train)
+    Y = _to_tensor(y_train).squeeze()
     grid = torch.linspace(0, Y.max().item() * 1.1, grid_size).unsqueeze(-1).to(X.device)
     dists = model.distributions(X)
     cdfs = dists.cdf(grid)
@@ -114,6 +114,42 @@ def test_cann():
     cann.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     cann.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
+    check_crps(cann, X_train, y_train)
+
+
+def test_fit_works_for_pd_series_targets():
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+
+    # Convert to pd.Series
+    y_train = pd.Series(y_train, name="Y")
+    y_val = pd.Series(y_val, name="Y")
+
+    torch.manual_seed(2)
+    base = GLM(X_train.shape[1], distribution="gamma")
+    base.fit(X_train, y_train, X_val, y_val, epochs=2)
+
+    cann = CANN(base, num_hidden_layers=2, hidden_size=100)
+    cann.fit(X_train, y_train, X_val, y_val, epochs=2)
+
+    cann.update_dispersion(X_train, y_train)
+    check_crps(cann, X_train, y_train)
+
+
+def test_fit_works_for_pd_dataframe_targets():
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+
+    # Convert to pd.DataFrame
+    y_train = pd.DataFrame(y_train, columns=["Y"])
+    y_val = pd.DataFrame(y_val, columns=["Y"])
+
+    torch.manual_seed(2)
+    base = GLM(X_train.shape[1], distribution="gamma")
+    base.fit(X_train, y_train, X_val, y_val, epochs=2)
+
+    cann = CANN(base, num_hidden_layers=2, hidden_size=100)
+    cann.fit(X_train, y_train, X_val, y_val, epochs=2)
+
+    # cann.update_dispersion(X_train, y_train)
     check_crps(cann, X_train, y_train)
 
 
