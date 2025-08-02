@@ -1,5 +1,6 @@
-from typing import Optional
+from typing import Optional, Union
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -93,7 +94,10 @@ class DDR(BaseModel):
 
         return self.cutpoints, probs
 
-    def distributions(self, x):
+    def distributions(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ) -> Histogram:
+        x = self._to_tensor(x)
         cutpoints, prob_masses = self.forward(x)
         dists = Histogram(cutpoints, prob_masses)
         assert dists.batch_shape == torch.Size([x.shape[0]])

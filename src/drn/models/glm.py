@@ -127,10 +127,13 @@ class GLM(BaseModel):
         glm.load_state_dict(self.state_dict())
         return glm
 
-    def distributions(self, x: torch.Tensor):
+    def distributions(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
+        x = self._to_tensor(x)
         if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)

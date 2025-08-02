@@ -1,6 +1,7 @@
 from typing import List, Union
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
@@ -81,7 +82,9 @@ class MDN(BaseModel):
             sigmas = nn.Softplus()(self.pre_sigma(x))  # Ensure sigma is positive
             return [weights, mus, sigmas]
 
-    def distributions(self, x: torch.Tensor) -> MixtureSameFamily:
+    def distributions(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ) -> MixtureSameFamily:
         """
         Create distributional forecasts for the given inputs.
         Args:
@@ -89,6 +92,7 @@ class MDN(BaseModel):
         Returns:
             the predicted mixture distributions.
         """
+        x = self._to_tensor(x)
         params = self.forward(x)
         weights = params[0]
         mixture = Categorical(weights)

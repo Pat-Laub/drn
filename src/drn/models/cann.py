@@ -94,7 +94,7 @@ class CANN(BaseModel):
         return out
 
     def distributions(
-        self, x: torch.Tensor
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
@@ -102,6 +102,7 @@ class CANN(BaseModel):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
+        x = self._to_tensor(x)
         if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             dists = torch.distributions.Gamma(alphas, betas)

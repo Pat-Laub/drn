@@ -17,7 +17,9 @@ class BaseModel(L.LightningModule, abc.ABC):
     def loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor: ...
 
     @abc.abstractmethod
-    def distributions(self, x: torch.Tensor) -> Any: ...
+    def distributions(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ) -> Any: ...
 
     def training_step(self, batch: Any, idx: int) -> torch.Tensor:
         x, y = batch

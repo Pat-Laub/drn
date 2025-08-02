@@ -1,5 +1,6 @@
 from typing import Optional, Union
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -151,7 +152,10 @@ class DRN(BaseModel):
 
         return baseline_dists, self.cutpoints, baseline_probs, drn_pmf
 
-    def distributions(self, x):
+    def distributions(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ) -> ExtendedHistogram:
+        x = self._to_tensor(x)
         baseline_dists, cutpoints, baseline_probs, drn_pmf = self.forward(x)
         return ExtendedHistogram(baseline_dists, cutpoints, drn_pmf, baseline_probs)
 
