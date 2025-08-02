@@ -43,8 +43,12 @@ def train(
         gradient_clipping: Whether to apply gradient clipping.
     """
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size)
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=len(val_dataset))  # type: ignore
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset, batch_size=batch_size, shuffle=True
+    )
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset, batch_size=len(val_dataset), shuffle=False
+    )
 
     if device is None:
         if torch.cuda.is_available():
