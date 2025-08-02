@@ -63,8 +63,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
         # Build training DataLoader
         train_tensor = TensorDataset(
-            torch.tensor(X_train_arr, dtype=torch.float32),
-            torch.tensor(y_train_arr, dtype=torch.float32),
+            torch.Tensor(X_train_arr), torch.Tensor(y_train_arr)
         )
         train_loader = DataLoader(train_tensor, batch_size=batch_size, shuffle=True)
 
@@ -77,10 +76,7 @@ class BaseModel(L.LightningModule, abc.ABC):
             return
 
         # Build validation DataLoader
-        val_tensor = TensorDataset(
-            torch.tensor(X_val_arr, dtype=torch.float32),
-            torch.tensor(y_val_arr, dtype=torch.float32),
-        )
+        val_tensor = TensorDataset(torch.Tensor(X_val_arr), torch.Tensor(y_val_arr))
         val_loader = DataLoader(val_tensor, batch_size=len(val_tensor), shuffle=False)
 
         if trainer_kwargs.get("enable_checkpointing") is False:
@@ -131,4 +127,4 @@ class BaseModel(L.LightningModule, abc.ABC):
             arr = arr.values
         elif isinstance(arr, pd.Series):
             arr = arr.values.reshape(-1, 1)
-        return torch.tensor(arr, dtype=torch.float32, device=self.device)
+        return torch.Tensor(arr, device=self.device)

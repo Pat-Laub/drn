@@ -200,7 +200,7 @@ class MDN(BaseModel):
         )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
         u = torch.Tensor([200]) if u is None else u
         quantiles = [
-            self.icdf(x, torch.tensor(percentile / 100.0), l, u, max_iter, tolerance)
+            self.icdf(x, percentile / 100.0, l, u, max_iter, tolerance)
             for percentile in percentiles
         ]
 

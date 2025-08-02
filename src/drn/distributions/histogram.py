@@ -399,7 +399,7 @@ class Histogram(Distribution):
             else u
         )
         quantiles = [
-            self.icdf(torch.tensor(percentile / 100.0), l, u, max_iter, tolerance)
+            self.icdf(percentile / 100.0, l, u, max_iter, tolerance)
             for percentile in percentiles
         ]
 

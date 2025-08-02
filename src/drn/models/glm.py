@@ -34,10 +34,12 @@ class GLM(BaseModel):
             self.linear.weight.data.fill_(0.0)
             self.linear.bias.data.fill_(0.0)
             # Set default dispersion to 1 for numerical stability
-            self.dispersion = nn.Parameter(torch.tensor(1.0), requires_grad=False)
+            self.dispersion = nn.Parameter(torch.Tensor([1.0]), requires_grad=False)
         else:
             # Dispersion not set until model is trained
-            self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
+            self.dispersion = nn.Parameter(
+                torch.Tensor([torch.nan]), requires_grad=False
+            )
 
         self.loss_fn = (
             gaussian_deviance_loss
@@ -91,11 +93,11 @@ class GLM(BaseModel):
         # Create PyTorch GLM instance
         torch_glm = GLM(p, distribution)
         torch_glm.linear.weight.data = (
-            torch.tensor(betas[1:], dtype=torch.float32).unsqueeze(0)
+            torch.Tensor(betas[1:]).unsqueeze(0)
             if not null_model
             else torch.zeros((1, p))
         )
-        torch_glm.linear.bias.data = torch.tensor([betas[0]], dtype=torch.float32)
+        torch_glm.linear.bias.data = torch.Tensor([betas[0]])
 
         # Set dispersion parameter
         if distribution == "gamma":
@@ -105,7 +107,7 @@ class GLM(BaseModel):
         elif distribution in ["gaussian", "lognormal"]:
             disp = (results.scale**0.5).item()
 
-        torch_glm.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
+        torch_glm.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
         if device:
             torch_glm = torch_glm.to(device)
@@ -150,7 +152,7 @@ class GLM(BaseModel):
         X = self._to_tensor(X_train)
         y = self._to_tensor(y_train)
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
-        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
+        self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -246,7 +248,7 @@ class GLM(BaseModel):
             raise ValueError(f"Unsupported model type: {self.distribution}")
 
         quantiles = [
-            self.icdf(x, torch.tensor(percentile / 100), l, u, max_iter, tolerance)
+            self.icdf(x, percentile / 100, l, u, max_iter, tolerance)
             for percentile in percentiles
         ]
         return torch.stack(quantiles, dim=1)[0]

@@ -101,7 +101,7 @@ def test_glm_from_statsmodels():
     results = model.fit()
     statsmodels_predictions = results.predict(sm.add_constant(x_train))
 
-    X_train = torch.tensor(x_train.values, dtype=X_train.dtype, device=X_train.device)
+    X_train = torch.Tensor(x_train.values, device=X_train.device)
     our_predictions = glm.forward(X_train).detach().cpu().numpy()
 
     assert np.allclose(statsmodels_predictions, our_predictions)

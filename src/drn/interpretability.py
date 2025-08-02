@@ -1167,11 +1167,7 @@ class DRNExplainer:
         """
         if isinstance(data, torch.Tensor):
             return data
-        return torch.tensor(
-            np.asarray(data),
-            dtype=next(self.glm.parameters()).dtype,
-            device=next(self.glm.parameters()).device,
-        )
+        return torch.Tensor(np.asarray(data), device=next(self.glm.parameters()).device)
 
     def mean_drn(self, instances: npt.NDArray):
         """

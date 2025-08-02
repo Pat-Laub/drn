@@ -46,10 +46,10 @@ def generate_synthetic_tensordataset(n=1000, seed=1):
     print(f"Using device {device}")
 
     # Convert NumPy arrays to PyTorch tensors and move them to the specified device
-    X_train = torch.tensor(x_train).float().to(device)
-    Y_train = torch.tensor(y_train).float().to(device)
-    X_val = torch.tensor(x_val).float().to(device)
-    Y_val = torch.tensor(y_val).float().to(device)
+    X_train = torch.Tensor(x_train).to(device)
+    Y_train = torch.Tensor(y_train).to(device)
+    X_val = torch.Tensor(x_val).to(device)
+    Y_val = torch.Tensor(y_val).to(device)
 
     # Create Tensor datasets for training and validation
     train_dataset = torch.utils.data.TensorDataset(X_train, Y_train)

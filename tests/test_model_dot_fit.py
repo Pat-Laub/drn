@@ -26,7 +26,7 @@ def _to_tensor(arr):
     """Convert NumPy array or pandas to torch.FloatTensor."""
     if isinstance(arr, (pd.DataFrame, pd.Series)):
         arr = arr.values
-    return torch.tensor(arr, dtype=torch.float32)
+    return torch.Tensor(arr)
 
 
 def check_crps(model, X_train, y_train, grid_size=3000):

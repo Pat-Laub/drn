@@ -48,7 +48,7 @@ class CANN(BaseModel):
         self.glm = glm.clone()
         self.train_glm = train_glm
         self.distribution = glm.distribution
-        self.dispersion = nn.Parameter(torch.tensor(torch.nan), requires_grad=False)
+        self.dispersion = nn.Parameter(torch.Tensor([torch.nan]), requires_grad=False)
 
         layers = [
             nn.Linear(self.p, hidden_size),
@@ -122,7 +122,7 @@ class CANN(BaseModel):
         X = self._to_tensor(X_train)
         y = self._to_tensor(y_train)
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
-        self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
+        self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: np.ndarray) -> np.ndarray:
         """
@@ -210,18 +210,8 @@ class CANN(BaseModel):
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        if self.distribution == "gamma":
-            quantiles = [
-                self.icdf(
-                    x, torch.tensor(percentile / 100.0), l, u, max_iter, tolerance
-                )
-                for percentile in percentiles
-            ]
-        else:
-            quantiles = [
-                self.icdf(
-                    x, torch.tensor(percentile / 100.0), l, u, max_iter, tolerance
-                )
-                for percentile in percentiles
-            ]
+        quantiles = [
+            self.icdf(x, torch.Tensor([percentile / 100.0]), l, u, max_iter, tolerance)
+            for percentile in percentiles
+        ]
         return torch.stack(quantiles, dim=1)[0]
