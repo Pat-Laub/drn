@@ -46,9 +46,12 @@ class BaseModel(L.LightningModule, abc.ABC):
         patience: int = 5,
         **trainer_kwargs,
     ) -> None:
-        # Default to CPU training unless the user explicitly asks for something else
+        # Set some default trainer arguments
+        trainer_kwargs.setdefault("max_epochs", epochs)
         trainer_kwargs.setdefault("accelerator", "cpu")
         trainer_kwargs.setdefault("devices", 1)
+        trainer_kwargs.setdefault("logger", False)
+        trainer_kwargs.setdefault("deterministic", True)
 
         # Normalise inputs to numpy arrays
         X_train_arr = np.asarray(X_train)
@@ -68,8 +71,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         # Simple train if no validation provided
         if not has_val:
             trainer_kwargs.setdefault("enable_checkpointing", False)
-
-            trainer = L.Trainer(max_epochs=epochs, **trainer_kwargs)
+            trainer = L.Trainer(**trainer_kwargs)
             trainer.fit(self, train_loader)
             self.eval()
             return
@@ -103,9 +105,7 @@ class BaseModel(L.LightningModule, abc.ABC):
                 monitor="val_loss", mode="min", patience=patience, verbose=True
             )
 
-            trainer = L.Trainer(
-                max_epochs=epochs, callbacks=[ckpt_cb, early_cb], **trainer_kwargs
-            )
+            trainer = L.Trainer(callbacks=[ckpt_cb, early_cb], **trainer_kwargs)
             trainer.fit(self, train_loader, val_loader)
 
             # Restore best weights

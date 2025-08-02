@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -35,19 +36,19 @@ def test_glm_checkpoint():
         max_epochs=2, logger=False, enable_checkpointing=False, accelerator="cpu"
     )
     trainer.fit(glm_model, train_loader, val_loader)
-
     glm_model.update_dispersion(X_train, Y_train)
 
-    ckpt = "glm_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    glm_loaded = GLM.load_from_checkpoint(ckpt)
+    # save to temp file
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        glm_loaded = GLM.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in glm_model.named_parameters():
         lp = dict(glm_loaded.named_parameters())[name]
         assert torch.allclose(param, lp), f"GLM param {name} mismatch"
 
-    # compare predictions via CDF at the targets
+    # compare predictions via CDF
     glm_model.eval()
     glm_loaded.eval()
     d_orig = glm_model.distributions(X_train)
@@ -63,7 +64,6 @@ def test_cann_checkpoint():
     train_loader = torch.utils.data.DataLoader(train_data, batch_size=128, shuffle=True)
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
-    # first fit the base GLM
     torch.manual_seed(2)
     glm = GLM(X_train.shape[1], distribution="gamma")
     trainer = L.Trainer(
@@ -71,18 +71,16 @@ def test_cann_checkpoint():
     )
     trainer.fit(glm, train_loader, val_loader)
 
-    # now fit the CANN
     cann_model = CANN(glm, num_hidden_layers=2, hidden_size=100)
     trainer.fit(cann_model, train_loader, val_loader)
     cann_model.update_dispersion(X_train, Y_train)
 
-    ckpt = "cann_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    cann_loaded = CANN.load_from_checkpoint(ckpt)
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        cann_loaded = CANN.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in cann_model.named_parameters():
-        # As glm.disperion is nan, and `allclose(nan, nan)` is False, need to check nan separately
         lp = dict(cann_loaded.named_parameters())[name]
         close = torch.allclose(param, lp)
         all_nan = torch.isnan(param).all() and torch.isnan(lp).all()
@@ -111,9 +109,9 @@ def test_mdn_checkpoint():
     )
     trainer.fit(mdn_model, train_loader, val_loader)
 
-    ckpt = "mdn_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    mdn_loaded = MDN.load_from_checkpoint(ckpt)
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        mdn_loaded = MDN.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in mdn_model.named_parameters():
@@ -144,9 +142,9 @@ def test_ddr_checkpoint():
     )
     trainer.fit(ddr_model, train_loader, val_loader)
 
-    ckpt = "ddr_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    ddr_loaded = DDR.load_from_checkpoint(ckpt)
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        ddr_loaded = DDR.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in ddr_model.named_parameters():
@@ -183,9 +181,9 @@ def test_drn_checkpoint():
     drn_model = DRN(glm, cut_drn, hidden_size=100)
     trainer.fit(drn_model, train_loader, val_loader)
 
-    ckpt = "drn_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    drn_loaded = DRN.load_from_checkpoint(ckpt)
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        drn_loaded = DRN.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in drn_model.named_parameters():
@@ -218,9 +216,9 @@ def test_torch_compat_checkpoint():
     )
     trainer.fit(drn_model, train_loader, val_loader)
 
-    ckpt = "drn_torch_test.ckpt"
-    trainer.save_checkpoint(ckpt)
-    drn_loaded = DRN.load_from_checkpoint(ckpt)
+    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
+        trainer.save_checkpoint(tmp.name)
+        drn_loaded = DRN.load_from_checkpoint(tmp.name)
 
     # compare weights
     for name, param in drn_model.named_parameters():
