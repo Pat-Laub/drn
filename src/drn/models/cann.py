@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pandas as pd
 import torch
 import torch.nn as nn
 
@@ -71,6 +72,10 @@ class CANN(BaseModel):
         )
         self.learning_rate = learning_rate
 
+    def fit(self, X_train, y_train, *args, **kwargs):
+        super().fit(X_train, y_train, *args, **kwargs)
+        self.update_dispersion(X_train, y_train)
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Calculate the predicted outputs for the distributions.
@@ -109,7 +114,13 @@ class CANN(BaseModel):
     def loss(self, x, y):
         return self.loss_fn(self.forward(x), y)
 
-    def update_dispersion(self, X: torch.Tensor, y: torch.Tensor) -> None:
+    def update_dispersion(
+        self,
+        X_train: Union[np.ndarray, pd.DataFrame, torch.Tensor],
+        y_train: Union[np.ndarray, pd.Series, torch.Tensor],
+    ) -> None:
+        X = self._to_tensor(X_train)
+        y = self._to_tensor(y_train)
         disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
         self.dispersion = nn.Parameter(torch.tensor(disp), requires_grad=False)
 

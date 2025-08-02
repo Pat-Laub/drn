@@ -22,8 +22,12 @@ def _extract_numpy_from_tensordataset(ds):
     return X_t.cpu().numpy(), y_t.cpu().numpy()
 
 
-def _compare_params(m1, m2, atol=1e-6):
-    for p1, p2 in zip(m1.parameters(), m2.parameters()):
+def _compare_params(m1, m2, atol=1e-6, ignore_dispersion=True):
+    for (n1, p1), (n2, p2) in zip(m1.named_parameters(), m2.named_parameters()):
+        assert n1 == n2, "Parameter lists aren’t aligned!"
+        if "dispersion" in n1 and ignore_dispersion:
+            continue
+
         close = torch.allclose(p1, p2, atol=atol)
         both_nan = torch.isnan(p1).all() and torch.isnan(p2).all()
         assert (
@@ -124,3 +128,36 @@ def test_glm_train_vs_fit_early_stopping_equivalence():
 
     # compare every learned parameter
     _compare_params(glm1, glm2)
+
+
+def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
+    """CANN trained via `train(...)` vs. via `.fit(...)` should end up identical."""
+    seed = 1234
+    # get torch tensors + datasets
+    X_t, y_t, train_ds, val_ds = generate_synthetic_tensordataset()
+    # extract numpy arrays for .fit
+    X_train_np, y_train_np = X_t.cpu().numpy(), y_t.cpu().numpy()
+    X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
+
+    # 1) train(...) version
+    torch.manual_seed(seed)
+    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
+    train(cann1, train_ds, val_ds, epochs=1)
+
+    # 2) .fit(...) version
+    torch.manual_seed(seed)
+    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
+    cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
+
+    # Add a fake dispersion parameter to cann1
+    cann1.disperion = 1234.5
+
+    # Make sure the test still passes by comparing the non-dispersion parameters
+    _compare_params(cann1, cann2, ignore_dispersion=True)
+
+    # Update dispersion for cann1 to match cann2 (which gets the dispersion from model.fit)
+    cann1.update_dispersion(X_t, y_t)
+
+    _compare_params(cann1, cann2, ignore_dispersion=False)

@@ -118,3 +118,17 @@ class BaseModel(L.LightningModule, abc.ABC):
                 self.load_state_dict(state)
 
         self.eval()
+
+    def _to_tensor(
+        self, arr: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        Convert input data to a PyTorch tensor.
+        """
+        if isinstance(arr, torch.Tensor):
+            return arr
+        elif isinstance(arr, pd.DataFrame):
+            arr = arr.values
+        elif isinstance(arr, pd.Series):
+            arr = arr.values.reshape(-1, 1)
+        return torch.tensor(arr, dtype=torch.float32, device=self.device)
