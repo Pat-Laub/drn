@@ -1,3 +1,4 @@
+from __future__ import annotations
 import abc
 import tempfile
 from typing import Any, Optional, Union
@@ -51,7 +52,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         epochs: int = 10,
         patience: int = 5,
         **trainer_kwargs,
-    ) -> None:
+    ) -> BaseModel:
         # Set some default trainer arguments
         trainer_kwargs.setdefault("max_epochs", epochs)
         trainer_kwargs.setdefault("accelerator", "cpu")
@@ -75,7 +76,7 @@ class BaseModel(L.LightningModule, abc.ABC):
             trainer = L.Trainer(**trainer_kwargs)
             trainer.fit(self, train_loader)
             self.eval()
-            return
+            return self
 
         # Build validation DataLoader
         val_tensor = TensorDataset(
@@ -118,6 +119,7 @@ class BaseModel(L.LightningModule, abc.ABC):
                 self.load_state_dict(state)
 
         self.eval()
+        return self
 
     def _to_tensor(
         self, arr: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]

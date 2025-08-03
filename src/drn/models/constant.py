@@ -1,3 +1,4 @@
+from __future__ import annotations
 import torch
 import torch.nn as nn
 import numpy as np
@@ -33,7 +34,7 @@ class Constant(BaseModel):
         y_train: Union[pd.DataFrame, pd.Series, np.ndarray],
         *args,
         **kwargs,
-    ) -> None:
+    ) -> Constant:
         # compute sample mean
         y_np = _to_numpy(y_train).flatten().astype(float)
         mean_y = y_np.mean()
@@ -45,7 +46,7 @@ class Constant(BaseModel):
         phi = estimate_dispersion(self.distribution, mu_t, y_t, p=0)
         self.dispersion.data.fill_(phi)
 
-        self.eval()
+        return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.mean_value.expand(x.shape[0])

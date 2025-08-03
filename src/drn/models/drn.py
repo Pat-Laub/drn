@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Union
 import numpy as np
 import pandas as pd
@@ -80,7 +81,7 @@ class DRN(BaseModel):
         self.learning_rate = learning_rate
         self.debug = debug
 
-    def fit(self, X_train, y_train, *args, **kwargs):
+    def fit(self, X_train, y_train, *args, **kwargs) -> DRN:
         # Lazily initialise the cutpoints if they weren't provided to us already
         if self.cutpoints is None:
             cutpoints = default_drn_cutpoints(y_train, self.proportion, self.min_obs)
@@ -92,7 +93,7 @@ class DRN(BaseModel):
                 nn.init.constant_(self.fc_output.weight, 0)
                 nn.init.constant_(self.fc_output.bias, 0)
 
-        super().fit(X_train, y_train, *args, **kwargs)
+        return super().fit(X_train, y_train, *args, **kwargs)
 
     def log_adjustments(self, x):
         """

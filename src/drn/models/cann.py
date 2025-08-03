@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Union
 
 import numpy as np
@@ -72,9 +73,10 @@ class CANN(BaseModel):
         )
         self.learning_rate = learning_rate
 
-    def fit(self, X_train, y_train, *args, **kwargs):
+    def fit(self, X_train, y_train, *args, **kwargs) -> CANN:
         super().fit(X_train, y_train, *args, **kwargs)
         self.update_dispersion(X_train, y_train)
+        return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """

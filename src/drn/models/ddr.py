@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional, Union
 import numpy as np
 import pandas as pd
@@ -61,7 +62,7 @@ class DDR(BaseModel):
         self.loss_metric = loss_metric
         self.learning_rate = learning_rate
 
-    def fit(self, X_train, y_train, *args, **kwargs):
+    def fit(self, X_train, y_train, *args, **kwargs) -> DDR:
         if self.cutpoints is None:
             c_0 = min(y_train.min().item() * 1.05, 0)
             c_K = y_train.max().item() * 1.05
@@ -71,7 +72,7 @@ class DDR(BaseModel):
             self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
             self.pi = nn.Linear(self.hidden_size, len(self.cutpoints) - 1)
 
-        super().fit(X_train, y_train, *args, **kwargs)
+        return super().fit(X_train, y_train, *args, **kwargs)
 
     def forward(self, x):
         """

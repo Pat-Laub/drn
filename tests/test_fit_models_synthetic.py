@@ -242,3 +242,33 @@ def test_torch():
     preds1 = drn(X_train)[-1]
     preds2 = drn(X_train)[-1]
     assert torch.allclose(preds1, preds2)
+
+
+# Just made all the fit methods return self
+# Just run constructor then fit method and save to a variable
+# to see if they all work
+def test_fit_chain():
+    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
+
+    torch.manual_seed(6)
+    glm = GLM(distribution="gamma", p=X_train.shape[1]).fit(X_train, Y_train)
+
+    cann = CANN(glm).fit(X_train, Y_train)
+
+    mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma").fit(
+        X_train, Y_train
+    )
+
+    ddr = DDR(X_train.shape[1]).fit(X_train, Y_train)
+
+    drn = DRN(glm).fit(X_train, Y_train)
+
+    constant = Constant(distribution="gamma").fit(X_train, Y_train)
+
+    # Check that none are None
+    assert glm is not None, "GLM fit returned None"
+    assert cann is not None, "CANN fit returned None"
+    assert mdn is not None, "MDN fit returned None"
+    assert ddr is not None, "DDR fit returned None"
+    assert drn is not None, "DRN fit returned None"
+    assert constant is not None, "Constant fit returned None"

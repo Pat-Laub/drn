@@ -54,7 +54,7 @@ class GLM(BaseModel):
         grad_descent: bool = False,
         *args,
         **kwargs,
-    ):
+    ) -> GLM:
         if self.p is None:
             self.p = X_train.shape[1]
             self._initialise_weights()
@@ -63,7 +63,7 @@ class GLM(BaseModel):
         if grad_descent:
             super().fit(X_train, y_train, *args, **kwargs)
             self.update_dispersion(X_train, y_train)
-            return
+            return self
 
         # But by default, fit using statsmodels and copy the parameters
         fitted_glm = self.from_statsmodels(X_train, y_train, self.distribution)
@@ -72,6 +72,7 @@ class GLM(BaseModel):
         self.dispersion = nn.Parameter(
             fitted_glm.dispersion.data.clone(), requires_grad=False
         )
+        return self
 
     @staticmethod
     def from_statsmodels(
