@@ -30,8 +30,7 @@ def test_glm():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
-    glm = GLM(X_train.shape[1], distribution="gamma")
-
+    glm = GLM(distribution="gamma", p=X_train.shape[1])
     train(glm, train_dataset, val_dataset, epochs=2)
 
     glm.update_dispersion(X_train, Y_train)
@@ -112,7 +111,7 @@ def test_cann():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(2)
-    glm = GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(distribution="gamma", p=X_train.shape[1])
     train(glm, train_dataset, val_dataset, epochs=2)
 
     cann = CANN(glm, num_hidden_layers=2, hidden_size=100)
@@ -169,7 +168,7 @@ def test_drn():
     assert len(cutpoints_drn) >= 2
 
     torch.manual_seed(5)
-    glm = GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(distribution="gamma", p=X_train.shape[1])
     train(glm, train_dataset, val_dataset, epochs=2)
     glm.update_dispersion(X_train, Y_train)
 

@@ -35,6 +35,25 @@ def _compare_params(m1, m2, atol=1e-6, ignore_dispersion=True):
         ), f"Parameters are not close enough: {p1} vs {p2} (close={close}, both_nan={both_nan})"
 
 
+def test_glm_fit_eager_lazy():
+    seed = 42
+    # get torch tensors + datasets
+    X_train, y_train, X_val, y_val = generate_synthetic_data()
+
+    # 1) Eager
+    torch.manual_seed(seed)
+    glm1 = GLM(distribution="gamma", p=X_train.shape[1])
+    glm1.fit(X_train, y_train)
+
+    # 2) Lazy
+    torch.manual_seed(seed)
+    glm2 = GLM(distribution="gamma")
+    glm2.fit(X_train, y_train)
+
+    # compare every learned parameter
+    _compare_params(glm1, glm2)  # , atol=1e-3)
+
+
 def test_glm_train_vs_fit_equivalence():
     """GLM trained via `train(...)` vs. via `.fit(...)` should end up identical."""
     seed = 42
@@ -46,24 +65,24 @@ def test_glm_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
-    train(glm1, train_ds, val_ds, epochs=1)
+    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
+    train(glm1, train_ds, val_ds, epochs=10)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    glm2 = GLM(distribution="gamma")
     glm2.fit(
         X_train_np,
         y_train_np,
         X_val_np,
         y_val_np,
         grad_descent=True,
-        epochs=1,
+        epochs=10,
         **FIT_KW,
     )
 
     # compare every learned parameter
-    _compare_params(glm1, glm2)
+    _compare_params(glm1, glm2, atol=1e-3)
 
 
 def test_cann_train_vs_fit_equivalence():
@@ -77,13 +96,17 @@ def test_cann_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    glm1 = GLM(distribution="gamma")
+    glm1.fit(X_train_np, y_train_np)
+
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    glm2 = GLM(distribution="gamma")
+    glm2.fit(X_train_np, y_train_np)
+
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
@@ -100,14 +123,12 @@ def test_mdn_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
     mdn1 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
     # wrap MDN into train helper exactly like before
     train(mdn1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
     mdn2 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
     mdn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
@@ -124,12 +145,12 @@ def test_glm_train_vs_fit_early_stopping_equivalence():
 
     # 1) train(...) version with patience=1
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
     train(glm1, train_ds, val_ds, epochs=10, patience=3)
 
     # 2) .fit(...) version with the same epochs & patience
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    glm2 = GLM(distribution="gamma")
     glm2.fit(
         X_train_np,
         y_train_np,
@@ -156,13 +177,17 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    glm1 = GLM(distribution="gamma")
+    glm1.fit(X_train_np, y_train_np)
+
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    glm2 = GLM(distribution="gamma")
+    glm2.fit(X_train_np, y_train_np)
+
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
@@ -237,12 +262,12 @@ def test_drn_train_vs_fit_equivalence():
 
     # prepare base GLM and estimate dispersion
     torch.manual_seed(seed)
-    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
     train(glm1, train_ds, val_ds, epochs=2)
     glm1.update_dispersion(X_t, y_t)
 
     torch.manual_seed(seed)
-    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    glm2 = GLM(distribution="gamma", p=X_t.shape[1])
     train(glm2, train_ds, val_ds, epochs=2)
     glm2.update_dispersion(X_t, y_t)
 

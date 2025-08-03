@@ -92,7 +92,7 @@ def test_equivalence_with_default_glm():
     # Constant without fit should match GLM without fit
     for dist in ("gamma", "gaussian", "inversegaussian"):
         const = Constant(dist)
-        glm = GLM(p=2, distribution=dist)
+        glm = GLM(distribution=dist, p=2)
         # Dummy input batch of size 3
         x = torch.randn((3, 2))
         # forward matches
@@ -119,7 +119,7 @@ def test_equivalence_with_null_glm_constructor():
     # GLM null_model=True constructor also sets zero coeffs & unit dispersion
     for dist in ("gamma", "gaussian", "inversegaussian"):
         const = Constant(dist)
-        glm = GLM(p=2, distribution=dist)
+        glm = GLM(distribution=dist, p=2)
         x = torch.randn((4, 2))
         assert torch.allclose(const.forward(x), glm.forward(x))
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())

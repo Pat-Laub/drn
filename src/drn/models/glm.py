@@ -15,20 +15,14 @@ from ..utils import _to_numpy
 
 
 class GLM(BaseModel):
-    def __init__(self, p: int, distribution: str, learning_rate=1e-3):
+    def __init__(self, distribution: str, p: Optional[int] = None, learning_rate=1e-3):
         self.save_hyperparameters()
 
         if distribution not in ("gamma", "gaussian", "inversegaussian", "lognormal"):
             raise ValueError(f"Unsupported model type: {distribution}")
 
         super(GLM, self).__init__()
-        self.p = p
         self.distribution = distribution
-        self.linear = nn.Linear(p, 1, bias=True)
-
-        # Set weights and bias to zero
-        self.linear.weight.data.fill_(0.0)
-        self.linear.bias.data.fill_(0.0)
 
         # Set default dispersion to 1 for numerical stability
         self.dispersion = nn.Parameter(torch.Tensor([1.0]), requires_grad=False)
@@ -40,6 +34,16 @@ class GLM(BaseModel):
         )
 
         self.learning_rate = learning_rate
+        self.p = p
+        if self.p is not None:
+            self._initialise_weights()
+
+    def _initialise_weights(self):
+        self.linear = nn.Linear(self.p, 1, bias=True)
+
+        # Set weights and bias to zero
+        self.linear.weight.data.fill_(0.0)
+        self.linear.bias.data.fill_(0.0)
 
     def fit(
         self,
@@ -51,6 +55,10 @@ class GLM(BaseModel):
         *args,
         **kwargs,
     ):
+        if self.p is None:
+            self.p = X_train.shape[1]
+            self._initialise_weights()
+
         # If the user specifically wants to use gradient descent, we will use the base class fit method
         if grad_descent:
             super().fit(X_train, y_train, *args, **kwargs)
@@ -103,7 +111,7 @@ class GLM(BaseModel):
             betas = np.asarray(betas)
 
         # Create PyTorch GLM instance
-        torch_glm = GLM(p, distribution)
+        torch_glm = GLM(distribution, p=p)
         torch_glm.linear.weight.data = (
             torch.Tensor(betas[1:]).unsqueeze(0)
             if not null_model
@@ -132,7 +140,7 @@ class GLM(BaseModel):
         """
         Create an independent copy of the model.
         """
-        glm = GLM(self.p, self.distribution)
+        glm = GLM(self.distribution, p=self.p)
         glm.load_state_dict(self.state_dict())
         return glm
 

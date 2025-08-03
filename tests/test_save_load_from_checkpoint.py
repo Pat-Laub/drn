@@ -31,7 +31,7 @@ def test_glm_checkpoint():
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
     torch.manual_seed(1)
-    glm_model = GLM(X_train.shape[1], distribution="gamma")
+    glm_model = GLM(distribution="gamma", p=X_train.shape[1])
     trainer = L.Trainer(
         max_epochs=2, logger=False, enable_checkpointing=False, accelerator="cpu"
     )
@@ -65,7 +65,7 @@ def test_cann_checkpoint():
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
     torch.manual_seed(2)
-    glm = GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(distribution="gamma", p=X_train.shape[1])
     trainer = L.Trainer(
         max_epochs=2, logger=False, enable_checkpointing=False, accelerator="cpu"
     )
@@ -171,7 +171,7 @@ def test_drn_checkpoint():
     cut_drn = merge_cutpoints(cut_ddr, Y_train.cpu().numpy(), min_obs=2)
 
     torch.manual_seed(5)
-    glm = GLM(X_train.shape[1], distribution="gamma")
+    glm = GLM(distribution="gamma", p=X_train.shape[1])
     trainer = L.Trainer(
         max_epochs=2, logger=False, enable_checkpointing=False, accelerator="cpu"
     )

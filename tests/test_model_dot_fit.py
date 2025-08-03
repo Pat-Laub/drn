@@ -50,7 +50,7 @@ def test_glm():
 
     # --- 1) NUMPY inputs ---
     torch.manual_seed(1)
-    glm_np = GLM(X_train.shape[1], distribution="gamma")
+    glm_np = GLM(distribution="gamma")
     glm_np.fit(X_train, y_train, X_val, y_val, epochs=2)
     glm_np.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
     check_crps(glm_np, X_train, y_train)
@@ -61,7 +61,7 @@ def test_glm():
     Xvl_df = pd.DataFrame(X_val, columns=Xtr_df.columns)
     yvl_sr = pd.Series(y_val, name="Y")
 
-    glm_pd = GLM(X_train.shape[1], distribution="gamma")
+    glm_pd = GLM(distribution="gamma")
     # one short epoch just to confirm no errors
     glm_pd.fit(Xtr_df, ytr_sr, Xvl_df, yvl_sr, epochs=1)
     glm_pd.update_dispersion(_to_tensor(Xtr_df), _to_tensor(ytr_sr))
@@ -108,7 +108,7 @@ def test_cann():
     X_train, y_train, X_val, y_val = generate_synthetic_data()
 
     torch.manual_seed(2)
-    base = GLM(X_train.shape[1], distribution="gamma")
+    base = GLM(distribution="gamma")
     base.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     cann = CANN(base, num_hidden_layers=2, hidden_size=100)
@@ -126,7 +126,7 @@ def test_fit_works_for_pd_series_targets():
     y_val = pd.Series(y_val, name="Y")
 
     torch.manual_seed(2)
-    base = GLM(X_train.shape[1], distribution="gamma")
+    base = GLM(distribution="gamma")
     base.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     cann = CANN(base, num_hidden_layers=2, hidden_size=100)
@@ -144,7 +144,7 @@ def test_fit_works_for_pd_dataframe_targets():
     y_val = pd.DataFrame(y_val, columns=["Y"])
 
     torch.manual_seed(2)
-    base = GLM(X_train.shape[1], distribution="gamma")
+    base = GLM(distribution="gamma")
     base.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     cann = CANN(base, num_hidden_layers=2, hidden_size=100)
@@ -191,7 +191,7 @@ def test_drn():
     assert len(cps1) >= 2
 
     torch.manual_seed(5)
-    base = GLM(X_train.shape[1], distribution="gamma")
+    base = GLM(distribution="gamma")
     base.fit(X_train, y_train, X_val, y_val, epochs=2)
     base.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
 
@@ -319,14 +319,14 @@ def test_drn_supplied_vs_default_cutpoints_equivalence():
 
     # 1) DRN with SUPPLIED cutpoints
     torch.manual_seed(123)
-    glm1 = GLM(p, distribution="gamma")
+    glm1 = GLM(distribution="gamma")
     glm1.fit(X_train, y_train, X_val, y_val, epochs=3)
     drn_sup = DRN(glm=glm1, cutpoints=expected_cuts)
     drn_sup.fit(X_train, y_train, X_val, y_val, epochs=3)
 
     # 2) DRN with DEFAULT cutpoints
     torch.manual_seed(123)
-    glm2 = GLM(p, distribution="gamma")
+    glm2 = GLM(distribution="gamma")
     glm2.fit(X_train, y_train, X_val, y_val, epochs=3)
     drn_def = DRN(glm=glm2, cutpoints=None)
     drn_def.fit(X_train, y_train, X_val, y_val, epochs=3)
@@ -363,7 +363,7 @@ def test_drn_default_cutpoints_match_function():
     expected = torch.tensor(merge_cutpoints(ddr_cps, y_train, min_obs=min_obs))
 
     # trigger auto-generation
-    glm = GLM(p, distribution="gamma")
+    glm = GLM(distribution="gamma")
     glm.fit(X_train, y_train, X_val, y_val, epochs=1)
 
     drn = DRN(glm=glm, cutpoints=None, proportion=proportion, min_obs=min_obs)
