@@ -154,3 +154,165 @@ def test_equivalence_with_from_statsmodels_null_model():
         mean_c = d_c.mean if hasattr(d_c, "mean") else torch.tensor(d_c.mean)
         mean_g = d_g.mean if hasattr(d_g, "mean") else torch.tensor(d_g.mean)
         assert torch.allclose(mean_c, mean_g, atol=1e-6)
+
+
+def test_quantiles_method_exists():
+    """Test that the quantiles method exists and is callable."""
+    for dist in ("gamma", "gaussian", "inversegaussian"):
+        const = Constant(dist)
+        assert hasattr(const, "quantiles")
+        assert callable(getattr(const, "quantiles"))
+
+
+def test_quantiles_shape_and_monotonicity():
+    """Test that quantiles return correct shape and are monotonically increasing."""
+    for dist in ("gamma", "gaussian", "inversegaussian"):
+        # Create and fit model
+        const = Constant(dist)
+
+        # Create training data
+        np.random.seed(42)
+        if dist == "gamma":
+            y_train = np.random.gamma(2, 2, 50)
+        elif dist == "gaussian":
+            y_train = np.random.normal(5, 2, 50)
+        else:  # inversegaussian
+            y_train = np.random.gamma(2, 2, 50)  # Use gamma as proxy
+
+        X_train = np.random.randn(50, 3)
+        const.fit(X_train, y_train)
+
+        # Test data
+        X_test = np.random.randn(5, 3)
+        percentiles = [10, 25, 50, 75, 90]
+
+        # Compute quantiles
+        quantiles = const.quantiles(X_test, percentiles)
+
+        # Check shape: should be (n_percentiles, n_samples)
+        assert quantiles.shape == (
+            5,
+            5,
+        ), f"Expected shape (5, 5), got {quantiles.shape}"
+
+        # Check that quantiles are monotonically increasing for each sample
+        for j in range(quantiles.shape[1]):  # for each sample
+            col = quantiles[:, j]  # get quantiles for this sample
+            for i in range(len(col) - 1):
+                assert (
+                    col[i] <= col[i + 1]
+                ), f"Quantiles not monotonic for {dist} at sample {j}"
+
+
+def test_quantiles_with_different_inputs():
+    """Test quantiles with different input types (numpy, pandas, torch)."""
+    const = Constant("gamma")
+    y_train = np.random.gamma(2, 2, 30)
+    X_train = np.random.randn(30, 2)
+    const.fit(X_train, y_train)
+
+    percentiles = [25, 50, 75]
+
+    # Test with numpy array
+    X_np = np.random.randn(3, 2)
+    q_np = const.quantiles(X_np, percentiles)
+
+    # Test with torch tensor
+    X_torch = torch.from_numpy(X_np).float()
+    q_torch = const.quantiles(X_torch, percentiles)
+
+    # Test with pandas DataFrame
+    X_pd = pd.DataFrame(X_np, columns=["feat1", "feat2"])
+    q_pd = const.quantiles(X_pd, percentiles)
+
+    # Results should be very similar (allowing for small numerical differences)
+    assert torch.allclose(q_np, q_torch, atol=1e-6)
+    assert torch.allclose(q_np, q_pd, atol=1e-6)
+
+
+def test_quantiles_values_reasonable():
+    """Test that quantile values are reasonable for known distributions."""
+    # Test Gaussian case where we can verify results analytically
+    const = Constant("gaussian")
+
+    # Fit with known data
+    y_train = np.array([0.0, 2.0, 4.0, 6.0, 8.0])  # mean = 4.0
+    X_train = np.zeros((5, 1))
+    const.fit(X_train, y_train)
+
+    X_test = np.zeros((1, 1))
+
+    # Test 50th percentile (median) should be close to mean for normal distribution
+    median = const.quantiles(X_test, [50])
+    assert (
+        torch.abs(median[0, 0] - 4.0) < 0.1
+    ), f"Median {median[0, 0]} not close to mean 4.0"
+
+    # Test that lower percentiles < higher percentiles
+    q_vals = const.quantiles(X_test, [10, 25, 50, 75, 90])
+    for i in range(4):
+        assert q_vals[i, 0] < q_vals[i + 1, 0], "Quantiles not properly ordered"
+
+
+def test_icdf_method_exists():
+    """Test that the icdf method exists and works."""
+    for dist in ("gamma", "gaussian", "inversegaussian"):
+        const = Constant(dist)
+        assert hasattr(const, "icdf")
+        assert callable(getattr(const, "icdf"))
+
+        # Fit model
+        y_train = np.array([1.0, 2.0, 3.0, 4.0, 5.0])
+        X_train = np.zeros((5, 2))
+        const.fit(X_train, y_train)
+
+        # Test icdf
+        X_test = np.zeros((3, 2))
+        result = const.icdf(X_test, 0.5)  # median
+
+        # Should return tensor of shape (1, n_samples)
+        assert result.shape == (1, 3), f"Expected shape (1, 3), got {result.shape}"
+
+        # Values should be positive for gamma/inversegaussian
+        if dist != "gaussian":
+            assert torch.all(result > 0), f"Expected positive values for {dist}"
+
+
+def test_quantiles_edge_cases():
+    """Test quantiles with edge cases."""
+    const = Constant("gamma")
+    y_train = np.array([1.5, 2.0, 2.5])  # small variation to avoid numerical issues
+    X_train = np.zeros((3, 1))
+    const.fit(X_train, y_train)
+
+    X_test = np.zeros((2, 1))
+
+    # Test with single percentile
+    q_single = const.quantiles(X_test, [50])
+    assert q_single.shape == (1, 2)  # (n_percentiles, n_samples)
+
+    # Test with extreme percentiles
+    q_extreme = const.quantiles(X_test, [5, 95])  # Use less extreme percentiles
+    assert q_extreme.shape == (2, 2)  # (n_percentiles, n_samples)
+    # For gamma distribution, 5th percentile should be < 95th percentile
+    assert torch.all(q_extreme[0, :] <= q_extreme[1, :])  # 5th <= 95th percentile
+
+
+def test_quantiles_consistency_with_distributions():
+    """Test that quantiles are consistent with the underlying distribution."""
+    const = Constant("gaussian")
+    y_train = np.array([0.0, 1.0, 2.0, 3.0, 4.0])
+    X_train = np.zeros((5, 1))
+    const.fit(X_train, y_train)
+
+    X_test = np.zeros((1, 1))
+
+    # Get quantile using our method
+    q50 = const.quantiles(X_test, [50])[0, 0]  # First percentile, first sample
+
+    # Get quantile directly from distribution
+    dist = const.distributions(torch.zeros(1, 1))
+    q50_direct = dist.icdf(torch.tensor(0.5))[0]
+
+    # Should be very close
+    assert torch.abs(q50 - q50_direct) < 1e-6, "Quantile inconsistent with distribution"

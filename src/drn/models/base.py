@@ -11,6 +11,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
 from lightning.pytorch.utilities import disable_possible_user_warnings
+from ..utils import binary_search_icdf
 
 disable_possible_user_warnings()
 
@@ -132,3 +133,68 @@ class BaseModel(L.LightningModule, abc.ABC):
         elif isinstance(arr, pd.DataFrame) or isinstance(arr, pd.Series):
             arr = arr.values
         return torch.Tensor(arr).to(self.device)
+
+    def icdf(
+        self,
+        x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor],
+        p: float,
+        l=None,
+        u=None,
+        max_iter=1000,
+        tolerance=1e-7,
+    ) -> torch.Tensor:
+        """
+        Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
+
+        This is a fallback implementation for PyTorch distributions that don't have icdf implemented.
+
+        Args:
+            x: Input features
+            p: cumulative probability value at which to evaluate icdf
+            l: lower bound for the quantile search
+            u: upper bound for the quantile search
+            max_iter: maximum number of iterations
+            tolerance: stopping criteria
+
+        Returns:
+            A tensor of shape (1, batch_shape) containing the inverse CDF values.
+        """
+        x = self._to_tensor(x)
+        dists = self.distributions(x)
+
+        # Try to use PyTorch distribution's icdf method first
+        try:
+            quantiles = dists.icdf(torch.tensor(p))
+            return quantiles.unsqueeze(0)
+        except (AttributeError, NotImplementedError, RuntimeError):
+            # Use shared binary search implementation
+            return binary_search_icdf(dists, p, l, u, max_iter, tolerance)
+
+    def quantiles(
+        self,
+        x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor],
+        percentiles: list,
+        l=None,
+        u=None,
+        max_iter=1000,
+        tolerance=1e-7,
+    ) -> torch.Tensor:
+        """
+        Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
+
+        This unified implementation first checks if the distribution has its own quantiles method,
+        then falls back to icdf-based approach.
+        """
+        x = self._to_tensor(x)
+        dists = self.distributions(x)
+
+        # Check if the distribution has its own quantiles method (e.g., Histogram, ExtendedHistogram)
+        if hasattr(dists, "quantiles") and callable(getattr(dists, "quantiles")):
+            return dists.quantiles(percentiles, l, u, max_iter, tolerance)
+
+        # Fallback to icdf-based approach
+        quantiles = [
+            self.icdf(x, percentile / 100.0, l, u, max_iter, tolerance)
+            for percentile in percentiles
+        ]
+        return torch.stack(quantiles, dim=1)[0]

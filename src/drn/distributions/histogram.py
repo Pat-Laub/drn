@@ -1,5 +1,6 @@
 import torch
 from torch.distributions import Distribution
+from ..utils import binary_search_icdf
 
 
 class Histogram(Distribution):
@@ -326,83 +327,20 @@ class Histogram(Distribution):
 
     def icdf(self, p, l=None, u=None, max_iter=1000, tolerance=1e-7) -> torch.Tensor:
         """
-        Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
-
-        Args:
-            p: cumulative probability values at which to evaluate icdf
-            l: lower bound for the quantile search
-            u: upper bound for the quantile search
-            max_iter: maximum number of iterations permitted for the quantile search
-            tolerance: stopping criteria for the search (precision)
-
-        Returns:
-            A tensor of shape (1, batch_shape) containing the inverse CDF values.
+        Calculate the inverse CDF (quantiles) using shared binary search implementation.
         """
-
-        num_observations = self.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[
-            1
-        ]  # Dummy call to cdf to determine the batch size
-        percentiles_tensor = torch.full(
-            (1, num_observations), fill_value=p, dtype=torch.float32
-        )
-
-        # Initialise matrices for the bounds
-        lower_bounds = (
-            l if l is not None else torch.Tensor([0])
-        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0])
-        upper_bounds = (
-            u
-            if u is not None
-            else self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
-        )  # Adjust max value as needed
-
-        lower_bounds = lower_bounds.repeat(num_observations).reshape(
-            1, num_observations
-        )
-        upper_bounds = upper_bounds.repeat(num_observations).reshape(
-            1, num_observations
-        )
-
-        for _ in range(max_iter):
-            mid_points = (lower_bounds + upper_bounds) / 2
-
-            cdf_vals = self.cdf(mid_points)
-
-            # Update the bounds based on where the CDF values are relative to the target percentiles
-            lower_update = cdf_vals < percentiles_tensor
-            upper_update = ~lower_update
-            lower_bounds = torch.where(lower_update, mid_points, lower_bounds)
-            upper_bounds = torch.where(upper_update, mid_points, upper_bounds)
-
-            # Check for convergence
-            if torch.max(upper_bounds - lower_bounds) < tolerance:
-                break
-
-        # Use the midpoint between the final bounds as the quantile estimate
-        quantiles = (lower_bounds + upper_bounds) / 2
-
-        return quantiles
+        return binary_search_icdf(self, p, l, u, max_iter, tolerance)
 
     def quantiles(
         self, percentiles: list, l=None, u=None, max_iter=1000, tolerance=1e-7
     ) -> torch.Tensor:
         """
-        Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
+        Calculate the quantile values for the given percentiles (cumulative probabilities * 100).
         """
-
-        l = torch.Tensor(
-            [0]
-        )  # self.cutpoints[0] - (self.cutpoints[-1]-self.cutpoints[0]) if l is None else l
-        u = (
-            self.cutpoints[-1] + (self.cutpoints[-1] - self.cutpoints[0])
-            if u is None
-            else u
-        )
         quantiles = [
             self.icdf(percentile / 100.0, l, u, max_iter, tolerance)
             for percentile in percentiles
         ]
-
         return torch.stack(quantiles, dim=1)[0]
 
     def __repr__(self):

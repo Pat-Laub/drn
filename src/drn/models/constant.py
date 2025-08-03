@@ -33,8 +33,12 @@ class Constant(BaseModel):
         Create a copy of the model with the same parameters.
         """
         clone = Constant(self.distribution)
-        clone.mean_value = nn.Parameter(self.mean_value.data.clone(), requires_grad=False)
-        clone.dispersion = nn.Parameter(self.dispersion.data.clone(), requires_grad=False)
+        clone.mean_value = nn.Parameter(
+            self.mean_value.data.clone(), requires_grad=False
+        )
+        clone.dispersion = nn.Parameter(
+            self.dispersion.data.clone(), requires_grad=False
+        )
         return clone
 
     def fit(

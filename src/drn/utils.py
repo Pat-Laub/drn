@@ -276,3 +276,153 @@ def _to_numpy(data):
         return data.astype(np.float32)
     else:
         return np.asarray(data, dtype=np.float32)
+
+
+def binary_search_icdf(
+    distribution, p: float, l=None, u=None, max_iter=1000, tolerance=1e-7
+) -> torch.Tensor:
+    """
+    Generic binary search implementation for inverse CDF (quantiles).
+
+    This function can be used by any distribution that has a `cdf` method
+    but doesn't have its own `icdf` implementation.
+
+    Args:
+        distribution: Distribution object with a `cdf` method
+        p: cumulative probability value at which to evaluate icdf
+        l: lower bound for the quantile search
+        u: upper bound for the quantile search
+        max_iter: maximum number of iterations
+        tolerance: stopping criteria for convergence
+
+    Returns:
+        A tensor of shape (1, batch_shape) containing the inverse CDF values.
+    """
+    # Get batch size by doing a dummy CDF call
+    if hasattr(distribution, "batch_shape"):
+        num_observations = distribution.batch_shape[0]
+    else:
+        # Fallback: try to infer from a dummy CDF call
+        dummy_val = torch.tensor([1.0])
+        try:
+            dummy_cdf = distribution.cdf(
+                dummy_val.unsqueeze(-1)
+                if hasattr(distribution, "cutpoints")
+                else dummy_val
+            )
+            num_observations = dummy_cdf.shape[-1] if dummy_cdf.ndim > 0 else 1
+        except:
+            num_observations = 1
+
+    percentiles_tensor = torch.full(
+        (1, num_observations), fill_value=p, dtype=torch.float32
+    )
+
+    # Initialize bounds with distribution-aware defaults
+    if l is None:
+        if hasattr(distribution, "cutpoints"):
+            # For histogram-like distributions
+            l = distribution.cutpoints[0] - (
+                distribution.cutpoints[-1] - distribution.cutpoints[0]
+            )
+        else:
+            # Try to get reasonable bounds from the distribution
+            try:
+                # Use distribution support if available
+                if hasattr(distribution, "support"):
+                    support = distribution.support
+                    if hasattr(support, "lower_bound"):
+                        l = support.lower_bound
+                    else:
+                        l = torch.tensor(
+                            -10.0
+                        )  # Default for unbounded below (e.g., Gaussian)
+                else:
+                    # Try to infer from distribution type
+                    if hasattr(distribution, "concentration") and hasattr(
+                        distribution, "rate"
+                    ):
+                        # Gamma-like distribution, should be positive
+                        l = torch.tensor(0.001)
+                    else:
+                        # Assume could be negative (e.g., Gaussian)
+                        l = torch.tensor(-10.0)
+            except:
+                l = torch.tensor(0.0)  # Conservative fallback
+    else:
+        l = torch.tensor(l) if not isinstance(l, torch.Tensor) else l
+
+    if u is None:
+        if hasattr(distribution, "cutpoints"):
+            # For histogram-like distributions
+            u = distribution.cutpoints[-1] + (
+                distribution.cutpoints[-1] - distribution.cutpoints[0]
+            )
+        else:
+            # Try to get reasonable bounds from the distribution
+            try:
+                # Use distribution support if available
+                if hasattr(distribution, "support"):
+                    support = distribution.support
+                    if hasattr(support, "upper_bound"):
+                        u = support.upper_bound
+                    else:
+                        u = torch.tensor(10.0)  # Default for unbounded above
+                else:
+                    # Conservative upper bound
+                    u = torch.tensor(10.0)
+            except:
+                u = torch.tensor(200.0)  # Conservative fallback
+    else:
+        u = torch.tensor(u) if not isinstance(u, torch.Tensor) else u
+
+    # Adaptive bounds: if the CDF at bounds doesn't bracket the target percentile,
+    # expand the bounds
+    try:
+        cdf_lower = distribution.cdf(l.repeat(num_observations))
+        cdf_upper = distribution.cdf(u.repeat(num_observations))
+
+        # If p is outside [cdf_lower, cdf_upper], expand bounds
+        if torch.any(p < cdf_lower):
+            # Need to expand lower bound
+            l = l - torch.abs(l) - 1.0
+        if torch.any(p > cdf_upper):
+            # Need to expand upper bound
+            u = u + torch.abs(u) + 1.0
+    except:
+        # If CDF evaluation fails, stick with original bounds
+        pass
+
+    # Ensure l and u are tensors
+    l = torch.tensor(l) if not isinstance(l, torch.Tensor) else l
+    u = torch.tensor(u) if not isinstance(u, torch.Tensor) else u
+
+    lower_bounds = l.repeat(num_observations).reshape(1, num_observations)
+    upper_bounds = u.repeat(num_observations).reshape(1, num_observations)
+
+    # Binary search for quantiles
+    for _ in range(max_iter):
+        mid_points = (lower_bounds + upper_bounds) / 2
+
+        # Call the distribution's CDF method
+        cdf_values = distribution.cdf(mid_points.squeeze(0))
+
+        # Ensure cdf_values has the right shape for comparison
+        if cdf_values.ndim == 0:
+            cdf_values = cdf_values.unsqueeze(0)
+        if (
+            len(cdf_values.shape) == 1
+            and cdf_values.shape[0] != percentiles_tensor.shape[1]
+        ):
+            cdf_values = cdf_values.expand(percentiles_tensor.shape[1])
+
+        # Update bounds based on CDF comparison
+        mask = cdf_values < percentiles_tensor.squeeze(0)
+        lower_bounds = torch.where(mask.unsqueeze(0), mid_points, lower_bounds)
+        upper_bounds = torch.where(mask.unsqueeze(0), upper_bounds, mid_points)
+
+        # Check convergence
+        if torch.all(torch.abs(upper_bounds - lower_bounds) < tolerance):
+            break
+
+    return (lower_bounds + upper_bounds) / 2
