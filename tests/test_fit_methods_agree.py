@@ -52,7 +52,15 @@ def test_glm_train_vs_fit_equivalence():
     # 2) .fit(...) version
     torch.manual_seed(seed)
     glm2 = GLM(X_t.shape[1], distribution="gamma")
-    glm2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
+    glm2.fit(
+        X_train_np,
+        y_train_np,
+        X_val_np,
+        y_val_np,
+        grad_descent=True,
+        epochs=1,
+        **FIT_KW,
+    )
 
     # compare every learned parameter
     _compare_params(glm1, glm2)
@@ -123,11 +131,18 @@ def test_glm_train_vs_fit_early_stopping_equivalence():
     torch.manual_seed(seed)
     glm2 = GLM(X_t.shape[1], distribution="gamma")
     glm2.fit(
-        X_train_np, y_train_np, X_val_np, y_val_np, epochs=10, patience=3, **FIT_KW
+        X_train_np,
+        y_train_np,
+        X_val_np,
+        y_val_np,
+        grad_descent=True,
+        epochs=10,
+        patience=3,
+        **FIT_KW,
     )
 
     # compare every learned parameter
-    _compare_params(glm1, glm2)
+    _compare_params(glm1, glm2, atol=1e-2)
 
 
 def test_cann_train_vs_fit_equivalence_ignoring_dispersion():

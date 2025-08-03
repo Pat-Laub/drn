@@ -1,4 +1,5 @@
-from typing import Union
+from __future__ import annotations
+from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -46,34 +47,48 @@ class GLM(BaseModel):
             if distribution == "gaussian"
             else gamma_deviance_loss
         )
+
         self.learning_rate = learning_rate
 
-    def fit(self, X_train, y_train, *args, **kwargs):
-        super().fit(X_train, y_train, *args, **kwargs)
-        self.update_dispersion(X_train, y_train)
+    def fit(
+        self,
+        X_train: Union[pd.DataFrame, np.ndarray],
+        y_train: Union[pd.DataFrame, pd.Series, np.ndarray],
+        X_val: Optional[Union[pd.DataFrame, np.ndarray]] = None,
+        y_val: Optional[Union[pd.DataFrame, pd.Series, np.ndarray]] = None,
+        grad_descent: bool = False,
+        *args,
+        **kwargs,
+    ):
+        # If the user specifically wants to use gradient descent, we will use the base class fit method
+        if grad_descent:
+            super().fit(X_train, y_train, *args, **kwargs)
+            self.update_dispersion(X_train, y_train)
+            return
+
+        # But by default, fit using statsmodels and copy the parameters
+        fitted_glm = self.from_statsmodels(X_train, y_train, self.distribution)
+        self.linear.weight.data = fitted_glm.linear.weight.data.clone()
+        self.linear.bias.data = fitted_glm.linear.bias.data.clone()
+        self.dispersion = nn.Parameter(
+            fitted_glm.dispersion.data.clone(), requires_grad=False
+        )
 
     @staticmethod
     def from_statsmodels(
-        X: Union[np.ndarray, torch.Tensor],
-        y: Union[np.ndarray, torch.Tensor],
+        X: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
+        y: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
         distribution: str,
         null_model: bool = False,
     ):
-        p = X.shape[1]
+        # Convert inputs to numpy arrays with float32 precision
+        X = _to_numpy(X)
+        y = _to_numpy(y).flatten()
 
-        if isinstance(X, torch.Tensor) and isinstance(y, torch.Tensor):
-            device = X.device
-            X = X.detach().cpu().numpy()
-            y = y.detach().cpu().numpy()
-        else:
-            device = None
+        p = X.shape[1]
 
         if distribution == "lognormal":
             y = np.log(y)
-        # Create null model (intercept only)
-        # if null_model:
-        #     X = np.ones((X.shape[0], 1))  # Only intercept
-        #     p = 1  # Single coefficient (intercept)
 
         # Choose the correct family
         if distribution == "gamma":
@@ -109,9 +124,6 @@ class GLM(BaseModel):
 
         torch_glm.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
-        if device:
-            torch_glm = torch_glm.to(device)
-
         return torch_glm
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -119,7 +131,7 @@ class GLM(BaseModel):
             return torch.exp(self.linear(x)).squeeze(-1)
         return self.linear(x).squeeze(-1)
 
-    def clone(self) -> "GLM":
+    def clone(self) -> GLM:
         """
         Create an independent copy of the model.
         """
@@ -165,7 +177,7 @@ class GLM(BaseModel):
 
     def icdf(
         self,
-        x: Union[np.ndarray, torch.Tensor],
+        x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor],
         p,
         l=None,
         u=None,
@@ -176,6 +188,7 @@ class GLM(BaseModel):
         Calculate the inverse CDF (quantiles) of the distribution for the given cumulative probability.
 
         Args:
+            x: Input features
             p: cumulative probability values at which to evaluate icdf
             l: lower bound for the quantile search
             u: upper bound for the quantile search
@@ -185,9 +198,7 @@ class GLM(BaseModel):
         Returns:
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
-
-        if isinstance(x, np.ndarray):
-            x = torch.Tensor(x)
+        x = self._to_tensor(x)
         dists = self.distributions(x)
         num_observations = dists.cdf(torch.Tensor([1]).unsqueeze(-1)).shape[
             1
@@ -402,3 +413,15 @@ class InverseGaussianTorch(torch.distributions.Distribution):
         term2 = torch.exp(2.0 * lambda_ / self.mu) * standard_normal.cdf(z2)
 
         return term1 + term2
+
+
+def _to_numpy(data):
+    """Convert input data to numpy array with float32 precision."""
+    if isinstance(data, torch.Tensor):
+        return data.detach().cpu().numpy().astype(np.float32)
+    elif isinstance(data, (pd.DataFrame, pd.Series)):
+        return data.values.astype(np.float32)
+    elif isinstance(data, np.ndarray):
+        return data.astype(np.float32)
+    else:
+        return np.asarray(data, dtype=np.float32)

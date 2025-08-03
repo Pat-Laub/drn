@@ -126,7 +126,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         Convert input data to a PyTorch tensor.
         """
         if isinstance(arr, torch.Tensor):
-            return arr
+            return arr.to(device=self.device)
         elif isinstance(arr, pd.DataFrame) or isinstance(arr, pd.Series):
             arr = arr.values
         return torch.Tensor(arr, device=self.device)
