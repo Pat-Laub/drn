@@ -47,9 +47,7 @@ class CANN(BaseModel):
         super(CANN, self).__init__()
 
         # Store baseline model and lazy initialization parameters
-        self.baseline_model = (
-            baseline.clone() if hasattr(baseline, "clone") else baseline
-        )
+        self.baseline = baseline.clone()
         self.train_glm = train_glm
         self.distribution = baseline.distribution
         self.dispersion = nn.Parameter(torch.Tensor([torch.nan]), requires_grad=False)
@@ -89,11 +87,11 @@ class CANN(BaseModel):
         """
         if self.distribution in ["gamma", "inversegaussian"]:
             out = torch.exp(
-                torch.log(self.baseline_model.forward(x))
+                torch.log(self.baseline.forward(x))
                 + self.nn_output_layer(x).squeeze()
             )
         else:
-            out = self.baseline_model.forward(x) + self.nn_output_layer(x).squeeze()
+            out = self.baseline.forward(x) + self.nn_output_layer(x).squeeze()
 
         assert out.shape == torch.Size(
             [x.shape[0]]
@@ -219,7 +217,7 @@ class CANN(BaseModel):
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
         quantiles = [
-            self.icdf(x, torch.Tensor([percentile / 100.0]), l, u, max_iter, tolerance)
+            self.icdf(x, percentile / 100.0, l, u, max_iter, tolerance)
             for percentile in percentiles
         ]
         return torch.stack(quantiles, dim=1)[0]

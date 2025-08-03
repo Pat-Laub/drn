@@ -28,6 +28,15 @@ class Constant(BaseModel):
         self.mean_value = nn.Parameter(torch.tensor(init), requires_grad=False)
         self.dispersion = nn.Parameter(torch.tensor(1.0), requires_grad=False)
 
+    def clone(self) -> Constant:
+        """
+        Create a copy of the model with the same parameters.
+        """
+        clone = Constant(self.distribution)
+        clone.mean_value = nn.Parameter(self.mean_value.data.clone(), requires_grad=False)
+        clone.dispersion = nn.Parameter(self.dispersion.data.clone(), requires_grad=False)
+        return clone
+
     def fit(
         self,
         X_train: Union[pd.DataFrame, np.ndarray],  # ignored
