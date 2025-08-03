@@ -127,7 +127,7 @@ def test_mdn():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(3)
-    mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma")
+    mdn = MDN(num_components=5, distribution="gamma")
     train(mdn, train_dataset, val_dataset, epochs=2)
 
     check_crps(mdn, X_train, Y_train)
@@ -152,7 +152,7 @@ def test_ddr():
     cutpoints_ddr = setup_cutpoints(Y_train)
 
     torch.manual_seed(4)
-    ddr = DDR(X_train.shape[1], cutpoints_ddr, hidden_size=100)
+    ddr = DDR(cutpoints_ddr, hidden_size=100)
     train(ddr, train_dataset, val_dataset, epochs=2)
 
     check_crps(ddr, X_train, Y_train)
@@ -255,11 +255,9 @@ def test_fit_chain():
 
     cann = CANN(glm).fit(X_train, Y_train)
 
-    mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma").fit(
-        X_train, Y_train
-    )
+    mdn = MDN(num_components=5, distribution="gamma").fit(X_train, Y_train)
 
-    ddr = DDR(X_train.shape[1]).fit(X_train, Y_train)
+    ddr = DDR().fit(X_train, Y_train)
 
     drn = DRN(glm).fit(X_train, Y_train)
 

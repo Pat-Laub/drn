@@ -13,7 +13,7 @@ from .base import BaseModel
 class DRN(BaseModel):
     def __init__(
         self,
-        glm,
+        baseline,
         cutpoints: Optional[list[float]] = None,
         num_hidden_layers=2,
         hidden_size=75,
@@ -39,13 +39,13 @@ class DRN(BaseModel):
         """
         self.save_hyperparameters()
         super(DRN, self).__init__()
-        self.glm = glm.clone()
+        self.glm = baseline.clone()
 
         for param in self.glm.parameters():
             param.requires_grad = False
 
         layers = [
-            nn.Linear(glm.p, hidden_size),
+            nn.Linear(baseline.p, hidden_size),
             nn.LeakyReLU(),
             nn.Dropout(dropout_rate),
         ]

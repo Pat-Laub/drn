@@ -78,7 +78,7 @@ def test_mdn():
     val_loader = torch.utils.data.DataLoader(val_data, batch_size=128, shuffle=False)
 
     torch.manual_seed(3)
-    mdn_model = MDN(X_train.shape[1], num_components=5, distribution="gamma")
+    mdn_model = MDN(num_components=5, distribution="gamma")
     trainer = L.Trainer(max_epochs=2, logger=False, enable_checkpointing=False)
     trainer.fit(mdn_model, train_loader, val_loader)
 
@@ -94,7 +94,7 @@ def test_ddr():
     cutpoints_ddr = setup_cutpoints(Y_train)
 
     torch.manual_seed(4)
-    ddr_model = DDR(X_train.shape[1], cutpoints_ddr, hidden_size=100)
+    ddr_model = DDR(cutpoints_ddr, hidden_size=100)
     trainer = L.Trainer(max_epochs=2, logger=False, enable_checkpointing=False)
     trainer.fit(ddr_model, train_loader, val_loader)
 

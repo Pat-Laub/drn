@@ -17,7 +17,6 @@ class MDN(BaseModel):
 
     def __init__(
         self,
-        p: int,
         num_hidden_layers=2,
         num_components=5,
         hidden_size=100,
@@ -35,11 +34,10 @@ class MDN(BaseModel):
         """
         self.save_hyperparameters()
         super(MDN, self).__init__()
-        self.p = p
         self.num_components = num_components
         self.distribution = distribution
 
-        layers = [nn.Linear(p, hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
+        layers = [nn.LazyLinear(hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers += [
                 nn.Linear(hidden_size, hidden_size),

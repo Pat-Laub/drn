@@ -12,7 +12,6 @@ from .base import BaseModel
 class DDR(BaseModel):
     def __init__(
         self,
-        p: int,
         cutpoints: Optional[list[float]] = None,
         num_hidden_layers=2,
         hidden_size=100,
@@ -31,13 +30,8 @@ class DDR(BaseModel):
         """
         self.save_hyperparameters()
         super(DDR, self).__init__()
-        self.p = p
 
-        layers = [
-            nn.Linear(self.p, hidden_size),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-        ]
+        layers = [nn.LazyLinear(hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
             layers.append(nn.LeakyReLU())

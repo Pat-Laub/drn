@@ -220,9 +220,8 @@ Nevertheless:
 # Initialise and train the DRN model
 torch.manual_seed(23)
 drn_model = DRN(
-    num_features=x_train.shape[1],
+    baseline=baseline,
     cutpoints=cutpoints_DRN,
-    glm=baseline,
     hidden_size=128,
     num_hidden_layers=2,
     baseline_start=False,

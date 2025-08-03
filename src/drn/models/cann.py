@@ -15,6 +15,7 @@ from .glm import (
 )
 
 from .base import BaseModel
+from .constant import Constant
 
 
 class CANN(BaseModel):
@@ -24,7 +25,7 @@ class CANN(BaseModel):
 
     def __init__(
         self,
-        glm: GLM,
+        baseline: Union[GLM, Constant],
         num_hidden_layers=2,
         hidden_size=50,
         dropout_rate=0.2,
@@ -33,37 +34,37 @@ class CANN(BaseModel):
     ):
         """
         Args:
-            glm: the GLM to use as the backbone, can be either Gamma or Gaussian GLM
+            baseline_model: the baseline model to use (GLM or Constant)
             num_hidden_layers: the number of hidden layers in the neural network
             hidden_size: the number of neurons in each hidden layer
-            train_glm: whether to retrain the GLM or not
+            train_glm: whether to retrain the baseline model or not
         """
         self.save_hyperparameters()
 
-        if not glm.distribution in ("gamma", "gaussian"):
-            raise ValueError(f"Unsupported model type: {glm.distribution}")
+        if not baseline.distribution in ("gamma", "gaussian", "inversegaussian"):
+            raise ValueError(f"Unsupported model type: {baseline.distribution}")
 
         super(CANN, self).__init__()
 
-        self.p = glm.p
-        self.glm = glm.clone()
+        # Store baseline model and lazy initialization parameters
+        self.baseline_model = (
+            baseline.clone() if hasattr(baseline, "clone") else baseline
+        )
         self.train_glm = train_glm
-        self.distribution = glm.distribution
+        self.distribution = baseline.distribution
         self.dispersion = nn.Parameter(torch.Tensor([torch.nan]), requires_grad=False)
 
-        layers = [
-            nn.Linear(self.p, hidden_size),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-        ]
+        layers = [nn.LazyLinear(hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
-            layers.append(nn.Linear(hidden_size, hidden_size))
-            layers.append(nn.LeakyReLU())
-            layers.append(
-                nn.Dropout(dropout_rate)
-            )  # Add dropout after each LeakyReLU activation
-
+            layers.extend(
+                [
+                    nn.Linear(hidden_size, hidden_size),
+                    nn.LeakyReLU(),
+                    nn.Dropout(dropout_rate),
+                ]
+            )
         layers.append(nn.Linear(hidden_size, 1))
+
         self.nn_output_layer = nn.Sequential(*layers)
 
         self.loss_fn = (
@@ -86,13 +87,17 @@ class CANN(BaseModel):
         Returns:
             the predicted outputs (shape: (n,))
         """
-        if self.distribution == "gamma":
-            out = torch.exp(self.glm.linear(x) + self.nn_output_layer(x))
+        if self.distribution in ["gamma", "inversegaussian"]:
+            out = torch.exp(
+                torch.log(self.baseline_model.forward(x))
+                + self.nn_output_layer(x).squeeze()
+            )
         else:
-            out = self.glm.linear(x) + self.nn_output_layer(x)
+            out = self.baseline_model.forward(x) + self.nn_output_layer(x).squeeze()
 
-        out = out.squeeze(-1)
-        assert out.shape == torch.Size([x.shape[0]])
+        assert out.shape == torch.Size(
+            [x.shape[0]]
+        ), f"Expected output shape [n], got {out.shape} for input shape {x.shape}"
         return out
 
     def distributions(
@@ -124,7 +129,7 @@ class CANN(BaseModel):
     ) -> None:
         X = self._to_tensor(X_train)
         y = self._to_tensor(y_train)
-        disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
+        disp = estimate_dispersion(self.distribution, self.forward(X), y, X.shape[1])
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: np.ndarray) -> np.ndarray:

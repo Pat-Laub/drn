@@ -158,7 +158,7 @@ def test_mdn():
     X_train, y_train, X_val, y_val = generate_synthetic_data()
 
     torch.manual_seed(3)
-    mdn = MDN(X_train.shape[1], num_components=5, distribution="gamma")
+    mdn = MDN(num_components=5, distribution="gamma")
     mdn.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     check_crps(mdn, X_train, y_train)
@@ -178,7 +178,7 @@ def test_ddr():
     cps = setup_cutpoints(y_train)
 
     torch.manual_seed(4)
-    ddr = DDR(X_train.shape[1], cps, hidden_size=100)
+    ddr = DDR(cps, hidden_size=100)
     ddr.fit(X_train, y_train, X_val, y_val, epochs=2)
 
     check_crps(ddr, X_train, y_train)
@@ -259,12 +259,12 @@ def test_ddr_supplied_vs_default_cutpoints_equivalence():
 
     # 1) Model with SUPPLIED cutpoints
     torch.manual_seed(42)
-    ddr_sup = DDR(p, cutpoints=expected_cps, proportion=proportion)
+    ddr_sup = DDR(cutpoints=expected_cps, proportion=proportion)
     ddr_sup.fit(X_train, y_train, X_val, y_val, epochs=3)
 
     # 2) Model with DEFAULT cutpoints
     torch.manual_seed(42)
-    ddr_def = DDR(p, cutpoints=None, proportion=proportion)
+    ddr_def = DDR(cutpoints=None, proportion=proportion)
     ddr_def.fit(X_train, y_train, X_val, y_val, epochs=3)
 
     # => their cutpoints should now be equal
@@ -297,7 +297,7 @@ def test_ddr_default_cutpoints_match_function():
         ddr_cutpoints(c0, cK, proportion=proportion, n=len(y_train))
     )
 
-    ddr = DDR(p, cutpoints=None, proportion=proportion)
+    ddr = DDR(cutpoints=None, proportion=proportion)
     # trigger auto-generation
     ddr.fit(X_train, y_train, X_val, y_val, epochs=1)
 
@@ -321,14 +321,14 @@ def test_drn_supplied_vs_default_cutpoints_equivalence():
     torch.manual_seed(123)
     glm1 = GLM(distribution="gamma")
     glm1.fit(X_train, y_train, X_val, y_val, epochs=3)
-    drn_sup = DRN(glm=glm1, cutpoints=expected_cuts)
+    drn_sup = DRN(glm1, cutpoints=expected_cuts)
     drn_sup.fit(X_train, y_train, X_val, y_val, epochs=3)
 
     # 2) DRN with DEFAULT cutpoints
     torch.manual_seed(123)
     glm2 = GLM(distribution="gamma")
     glm2.fit(X_train, y_train, X_val, y_val, epochs=3)
-    drn_def = DRN(glm=glm2, cutpoints=None)
+    drn_def = DRN(glm2, cutpoints=None)
     drn_def.fit(X_train, y_train, X_val, y_val, epochs=3)
 
     # => their cutpoints should now be equal
@@ -366,7 +366,7 @@ def test_drn_default_cutpoints_match_function():
     glm = GLM(distribution="gamma")
     glm.fit(X_train, y_train, X_val, y_val, epochs=1)
 
-    drn = DRN(glm=glm, cutpoints=None, proportion=proportion, min_obs=min_obs)
+    drn = DRN(glm, cutpoints=None, proportion=proportion, min_obs=min_obs)
     drn.fit(X_train, y_train, X_val, y_val, epochs=1)
 
     assert torch.allclose(

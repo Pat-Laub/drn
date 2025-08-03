@@ -6,6 +6,7 @@ os.environ["OPENBLAS_NUM_THREADS"] = "1"
 
 import numpy as np
 import torch
+import torch.nn as nn
 from synthetic_dataset import generate_synthetic_tensordataset
 from synthetic_dataset import generate_synthetic_data
 from drn import GLM, CANN, MDN, DDR, DRN, train, ddr_cutpoints, merge_cutpoints
@@ -99,7 +100,10 @@ def test_cann_train_vs_fit_equivalence():
     glm1 = GLM(distribution="gamma")
     glm1.fit(X_train_np, y_train_np)
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
+    _ = cann1.forward(x_obs)  # trigger LazyLinear init
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
@@ -108,6 +112,8 @@ def test_cann_train_vs_fit_equivalence():
     glm2.fit(X_train_np, y_train_np)
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
+
+    _ = cann2.forward(x_obs)  # trigger LazyLinear init
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     # compare every learned parameter
@@ -121,15 +127,18 @@ def test_mdn_train_vs_fit_equivalence():
     X_train_np, y_train_np = X_t.cpu().numpy(), y_t.cpu().numpy()
     X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     # 1) train(...) version
     torch.manual_seed(seed)
-    mdn1 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
-    # wrap MDN into train helper exactly like before
+    mdn1 = MDN(num_components=4, distribution="gamma")
+    _ = mdn1.forward(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    mdn2 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
+    mdn2 = MDN(num_components=4, distribution="gamma")
+    _ = mdn2.forward(x_obs)  # trigger LazyLinear init
     mdn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     _compare_params(mdn1, mdn2)
@@ -180,7 +189,10 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
     glm1 = GLM(distribution="gamma")
     glm1.fit(X_train_np, y_train_np)
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
+    _ = cann1.forward(x_obs)  # trigger LazyLinear init
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
@@ -189,10 +201,11 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
     glm2.fit(X_train_np, y_train_np)
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
+    _ = cann2.forward(x_obs)  # trigger LazyLinear init
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     # Add a fake dispersion parameter to cann1
-    cann1.disperion = 1234.5
+    cann1.dispersion = nn.Parameter(torch.Tensor([1234.5]))
 
     # Make sure the test still passes by comparing the non-dispersion parameters
     _compare_params(cann1, cann2, ignore_dispersion=True)
@@ -211,14 +224,18 @@ def test_mdn_train_vs_fit_early_stopping_equivalence():
     X_train_np, y_train_np = _extract_numpy_from_tensordataset(train_ds)
     X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     # 1) train(...) version with patience=2
     torch.manual_seed(seed)
-    mdn1 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
+    mdn1 = MDN(num_components=4, distribution="gamma")
+    _ = mdn1.forward(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=10, patience=2)
 
     # 2) .fit(...) version with the same epochs & patience
     torch.manual_seed(seed)
-    mdn2 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
+    mdn2 = MDN(num_components=4, distribution="gamma")
+    _ = mdn2.forward(x_obs)  # trigger LazyLinear init
     mdn2.fit(
         X_train_np, y_train_np, X_val_np, y_val_np, epochs=10, patience=2, **FIT_KW
     )
@@ -239,14 +256,18 @@ def test_ddr_train_vs_fit_equivalence():
     cK = y_train_np.max() * 1.05
     cps = ddr_cutpoints(c0, cK, proportion=0.1, n=len(y_train_np))
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     # 1) train(...) version
     torch.manual_seed(seed)
-    ddr1 = DDR(X_t.shape[1], cutpoints=cps, hidden_size=32)
+    ddr1 = DDR(cutpoints=cps, hidden_size=32)
+    _ = ddr1.forward(x_obs)  # trigger LazyLinear init
     train(ddr1, train_ds, val_ds, epochs=2)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    ddr2 = DDR(X_t.shape[1], cutpoints=cps, hidden_size=32)
+    ddr2 = DDR(cutpoints=cps, hidden_size=32)
+    _ = ddr2.forward(x_obs)  # trigger LazyLinear init
     ddr2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
 
     # compare parameters
