@@ -21,6 +21,7 @@ from drn import (
     crps,
     ddr_cutpoints,
     drn_cutpoints,
+    default_drn_cutpoints,
 )
 
 
@@ -312,10 +313,8 @@ def test_drn_supplied_vs_default_cutpoints_equivalence():
     min_obs = 1
 
     # Compute what the default DRN cutpoints should be:
-    c0 = min(y_train.min() * 1.05, 0)
-    cK = y_train.max() * 1.05
-    expected_cuts = drn_cutpoints(
-        c0, cK, y_train, proportion=proportion, min_obs=min_obs
+    expected_cuts = default_drn_cutpoints(
+        y_train, proportion=proportion, min_obs=min_obs
     )
 
     # 1) DRN with SUPPLIED cutpoints
@@ -373,3 +372,64 @@ def test_drn_default_cutpoints_match_function():
     assert torch.allclose(
         drn.cutpoints, expected
     ), "DRN.fit did not generate cutpoints matching merge_cutpoints(ddr_cutpoints(...))"
+
+
+def test_pandas_and_tensor_inputs_agree():
+    # This error only showed up with a larger dataset when the cutpoints are
+    # sometimes setup using float64 and sometimes float32 values.
+    X_train_np, y_train_np, X_val_np, y_val_np = generate_synthetic_data(n=10_000)
+
+    X_train_pd = pd.DataFrame(
+        X_train_np, columns=[f"X{i}" for i in range(X_train_np.shape[1])]
+    )
+    X_val_pd = pd.DataFrame(X_val_np, columns=X_train_pd.columns)
+    y_train_pd = pd.Series(y_train_np, name="Y")
+    y_val_pd = pd.Series(y_val_np, name="Y")
+
+    X_train_tensor = torch.Tensor(X_train_pd.values)
+    X_val_tensor = torch.Tensor(X_val_pd.values)
+    y_train_tensor = torch.Tensor(y_train_pd.values).flatten()
+    y_val_tensor = torch.Tensor(y_val_pd.values).flatten()
+
+    glm = GLM.from_statsmodels(X_train_pd, y_train_pd, distribution="gamma")
+
+    torch.manual_seed(23)
+    drn_model = DRN(
+        glm, cutpoints=None, hidden_size=128, num_hidden_layers=2, baseline_start=False
+    )
+
+    drn_model.fit(
+        X_train_pd,
+        y_train_pd,
+        X_val_pd,
+        y_val_pd,
+        batch_size=256,
+        epochs=1,
+        enable_progress_bar=False,
+    )
+
+    # Now compare with tensor inputs
+    torch.manual_seed(23)
+    drn_model_tensor = DRN(
+        glm, cutpoints=None, hidden_size=128, num_hidden_layers=2, baseline_start=False
+    )
+
+    drn_model_tensor.fit(
+        X_train_tensor,
+        y_train_tensor,
+        X_val_tensor,
+        y_val_tensor,
+        batch_size=256,
+        epochs=1,
+        enable_progress_bar=False,
+    )
+
+    # Compare parameters
+    params1 = dict(drn_model.named_parameters())
+    params2 = dict(drn_model_tensor.named_parameters())
+
+    for name in params1:
+        if name == "cutpoints":
+            continue
+        p1, p2 = params1[name], params2[name]
+        assert torch.allclose(p1, p2, atol=1e-5), f"DRN parameter {name} mismatch"

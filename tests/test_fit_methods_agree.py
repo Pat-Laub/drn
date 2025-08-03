@@ -8,7 +8,7 @@ import numpy as np
 import torch
 from synthetic_dataset import generate_synthetic_tensordataset
 from synthetic_dataset import generate_synthetic_data
-from drn import GLM, CANN, MDN, train
+from drn import GLM, CANN, MDN, DDR, DRN, train, ddr_cutpoints, merge_cutpoints
 
 # force CPU in .fit
 FIT_KW = dict(
@@ -176,3 +176,91 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
     cann1.update_dispersion(X_t, y_t)
 
     _compare_params(cann1, cann2, ignore_dispersion=False)
+
+
+def test_mdn_train_vs_fit_early_stopping_equivalence():
+    """MDN: train(...) vs .fit(...) with early stopping should match."""
+    seed = 2025
+    X_t, y_t, train_ds, val_ds = generate_synthetic_tensordataset()
+    # extract numpy arrays for .fit
+    X_train_np, y_train_np = _extract_numpy_from_tensordataset(train_ds)
+    X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
+
+    # 1) train(...) version with patience=2
+    torch.manual_seed(seed)
+    mdn1 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
+    train(mdn1, train_ds, val_ds, epochs=10, patience=2)
+
+    # 2) .fit(...) version with the same epochs & patience
+    torch.manual_seed(seed)
+    mdn2 = MDN(X_t.shape[1], num_components=4, distribution="gamma")
+    mdn2.fit(
+        X_train_np, y_train_np, X_val_np, y_val_np, epochs=10, patience=2, **FIT_KW
+    )
+
+    # compare parameters
+    _compare_params(mdn1, mdn2)
+
+
+def test_ddr_train_vs_fit_equivalence():
+    """DDR: train(...) vs .fit(...) should end up identical."""
+    seed = 31415
+    X_t, y_t, train_ds, val_ds = generate_synthetic_tensordataset()
+    X_train_np, y_train_np = _extract_numpy_from_tensordataset(train_ds)
+    X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
+
+    # compute cutpoints automatically
+    c0 = min(y_train_np.min() * 1.05, 0)
+    cK = y_train_np.max() * 1.05
+    cps = ddr_cutpoints(c0, cK, proportion=0.1, n=len(y_train_np))
+
+    # 1) train(...) version
+    torch.manual_seed(seed)
+    ddr1 = DDR(X_t.shape[1], cutpoints=cps, hidden_size=32)
+    train(ddr1, train_ds, val_ds, epochs=2)
+
+    # 2) .fit(...) version
+    torch.manual_seed(seed)
+    ddr2 = DDR(X_t.shape[1], cutpoints=cps, hidden_size=32)
+    ddr2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
+
+    # compare parameters
+    _compare_params(ddr1, ddr2)
+
+
+def test_drn_train_vs_fit_equivalence():
+    """DRN: train(...) vs .fit(...) should end up identical (ignoring dispersion)."""
+    seed = 2718
+    X_t, y_t, train_ds, val_ds = generate_synthetic_tensordataset()
+    X_train_np, y_train_np = _extract_numpy_from_tensordataset(train_ds)
+    X_val_np, y_val_np = _extract_numpy_from_tensordataset(val_ds)
+
+    # prepare base GLM and estimate dispersion
+    torch.manual_seed(seed)
+    glm1 = GLM(X_t.shape[1], distribution="gamma")
+    train(glm1, train_ds, val_ds, epochs=2)
+    glm1.update_dispersion(X_t, y_t)
+
+    torch.manual_seed(seed)
+    glm2 = GLM(X_t.shape[1], distribution="gamma")
+    train(glm2, train_ds, val_ds, epochs=2)
+    glm2.update_dispersion(X_t, y_t)
+
+    # generate DRN cutpoints
+    c0 = min(y_train_np.min() * 1.05, 0)
+    cK = y_train_np.max() * 1.05
+    base_cps = ddr_cutpoints(c0, cK, proportion=0.1, n=len(y_train_np))
+    drn_cps = merge_cutpoints(base_cps, y_train_np, min_obs=2)
+
+    # 1) train(...) version
+    torch.manual_seed(seed)
+    drn1 = DRN(glm1, cutpoints=drn_cps, hidden_size=32)
+    train(drn1, train_ds, val_ds, epochs=2)
+
+    # 2) .fit(...) version
+    torch.manual_seed(seed)
+    drn2 = DRN(glm2, cutpoints=drn_cps, hidden_size=32)
+    drn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
+
+    # compare parameters (ignore dispersion parameter)
+    _compare_params(drn1, drn2, ignore_dispersion=True)

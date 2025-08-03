@@ -81,13 +81,12 @@ class DRN(BaseModel):
         self.debug = debug
 
     def fit(self, X_train, y_train, *args, **kwargs):
+        # Lazily initialise the cutpoints if they weren't provided to us already
         if self.cutpoints is None:
-            c_0 = min(y_train.min().item() * 1.05, 0)
-            c_K = y_train.max().item() * 1.05
-            cutpoints = drn_cutpoints(
-                c_0, c_K, y_train, proportion=self.proportion, min_obs=self.min_obs
-            )
+            cutpoints = default_drn_cutpoints(y_train, self.proportion, self.min_obs)
             self.cutpoints = nn.Parameter(torch.Tensor(cutpoints), requires_grad=False)
+
+            # Also lazily initialise the output layer (needed the cutpoints to do this)
             self.fc_output = nn.Linear(self.hidden_size, len(self.cutpoints) - 1)
             if self.baseline_start:
                 nn.init.constant_(self.fc_output.weight, 0)
@@ -250,7 +249,7 @@ def merge_cutpoints(cutpoints: list[float], y: np.ndarray, min_obs: int) -> list
 def drn_cutpoints(
     c_0: float,
     c_K: float,
-    y: Union[np.ndarray, torch.Tensor],
+    y: np.ndarray,
     proportion: Optional[float] = None,
     num_cutpoints: Optional[int] = None,
     min_obs=1,
@@ -265,4 +264,33 @@ def drn_cutpoints(
 
     uniform_cutpoints = np.linspace(c_0, c_K, num_cutpoints).tolist()
 
-    return merge_cutpoints(uniform_cutpoints, np.asarray(y), min_obs)
+    return merge_cutpoints(uniform_cutpoints, y, min_obs)
+
+
+def default_drn_cutpoints(
+    y: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor],
+    proportion: float = 0.1,
+    min_obs: int = 1,
+) -> list[float]:
+    """
+    Generate default cutpoints for DRN based on the provided data.
+
+    Args:
+        y: Target variable values.
+        proportion: Proportion of data to use for cutpoints.
+        min_obs: Minimum number of observations per region.
+
+    Returns:
+        List of cutpoints for DRN.
+    """
+    # Convert the y input to a 32 bit numpy array
+    if isinstance(y, (pd.DataFrame, pd.Series)):
+        y = y.values
+    elif isinstance(y, torch.Tensor):
+        y = y.cpu().numpy()
+    y = np.asarray(y, dtype=np.float32)
+
+    c_0 = min(y.min() * 1.05, 0)
+    c_K = y.max() * 1.05
+
+    return drn_cutpoints(c_0, c_K, y, proportion=proportion, min_obs=min_obs)
