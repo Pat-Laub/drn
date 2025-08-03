@@ -15,14 +15,7 @@ from ..utils import _to_numpy
 
 
 class GLM(BaseModel):
-    def __init__(
-        self,
-        p: int,
-        distribution: str,
-        learning_rate=1e-3,
-        default: bool = False,
-        null_model: bool = False,
-    ):
+    def __init__(self, p: int, distribution: str, learning_rate=1e-3):
         self.save_hyperparameters()
 
         if distribution not in ("gamma", "gaussian", "inversegaussian", "lognormal"):
@@ -33,17 +26,12 @@ class GLM(BaseModel):
         self.distribution = distribution
         self.linear = nn.Linear(p, 1, bias=True)
 
-        if default or null_model:
-            # Set weights and bias to zero
-            self.linear.weight.data.fill_(0.0)
-            self.linear.bias.data.fill_(0.0)
-            # Set default dispersion to 1 for numerical stability
-            self.dispersion = nn.Parameter(torch.Tensor([1.0]), requires_grad=False)
-        else:
-            # Dispersion not set until model is trained
-            self.dispersion = nn.Parameter(
-                torch.Tensor([torch.nan]), requires_grad=False
-            )
+        # Set weights and bias to zero
+        self.linear.weight.data.fill_(0.0)
+        self.linear.bias.data.fill_(0.0)
+
+        # Set default dispersion to 1 for numerical stability
+        self.dispersion = nn.Parameter(torch.Tensor([1.0]), requires_grad=False)
 
         self.loss_fn = (
             gaussian_deviance_loss
@@ -262,14 +250,6 @@ class GLM(BaseModel):
         """
         Calculate the quantile values for the given observations and percentiles (cumulative probabilities * 100).
         """
-        if self.distribution not in [
-            "gamma",
-            "gaussian",
-            "lognormal",
-            "inversegaussian",
-        ]:
-            raise ValueError(f"Unsupported model type: {self.distribution}")
-
         quantiles = [
             self.icdf(x, percentile / 100, l, u, max_iter, tolerance)
             for percentile in percentiles
