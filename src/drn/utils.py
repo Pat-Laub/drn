@@ -1,8 +1,10 @@
 from typing import Optional
+import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import torch
 
 
 def split_and_preprocess(
@@ -262,3 +264,15 @@ def preprocess_data(
     x_test = pd.DataFrame(x_test_arr, columns=feature_names, index=x_test_raw.index)
 
     return x_train, x_val, x_test, ct, all_categories
+
+
+def _to_numpy(data):
+    """Convert input data to numpy array with float32 precision."""
+    if isinstance(data, torch.Tensor):
+        return data.detach().cpu().numpy().astype(np.float32)
+    elif isinstance(data, (pd.DataFrame, pd.Series)):
+        return data.values.astype(np.float32)
+    elif isinstance(data, np.ndarray):
+        return data.astype(np.float32)
+    else:
+        return np.asarray(data, dtype=np.float32)

@@ -9,6 +9,9 @@ import torch.nn as nn
 from statsmodels.genmod.families import Gamma, Gaussian, InverseGaussian
 
 from .base import BaseModel
+from ..distributions import inverse_gaussian
+from ..distributions.estimation import gamma_convert_parameters, estimate_dispersion
+from ..utils import _to_numpy
 
 
 class GLM(BaseModel):
@@ -99,7 +102,13 @@ class GLM(BaseModel):
             family = InverseGaussian(link=sm.families.links.Log())
 
         # Fit the GLM model
-        model = sm.GLM(y, sm.add_constant(X), family=family)
+        if null_model:
+            # Just input the constant without covariates
+            ones = np.ones((X.shape[0], 1))
+            model = sm.GLM(y, ones, family=family)
+        else:
+            model = sm.GLM(y, sm.add_constant(X), family=family)
+
         results = model.fit()
         betas = results.params
         if not isinstance(results.params, np.ndarray):
@@ -150,7 +159,7 @@ class GLM(BaseModel):
             alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)
         elif self.distribution == "inversegaussian":
-            return InverseGaussianTorch(self.forward(x), self.dispersion)
+            return inverse_gaussian.InverseGaussian(self.forward(x), self.dispersion)
         elif self.distribution == "lognormal":
             return torch.distributions.LogNormal(self.forward(x), self.dispersion)
         else:
@@ -310,118 +319,3 @@ def gaussian_deviance_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.
     """
     loss = (y_true - y_pred) ** 2
     return torch.mean(loss)
-
-
-def gamma_estimate_dispersion(mu: torch.Tensor, y: torch.Tensor, p: int) -> float:
-    """
-    For a gamma GLM, the dispersion parameter is estimated using the method of moments.
-    Args:
-        mu: the predicted means for the gamma distributions (shape: (n, 1))
-        y: the observed values (shape: (n, 1))
-        p: the number of features (not including the intercept)
-    """
-    n = mu.shape[0]
-    dof = n - (p + 1)
-    return (torch.sum((y - mu) ** 2 / mu**2) / dof).item()
-
-
-def gamma_convert_parameters(
-    mu: torch.Tensor, phi: torch.Tensor
-) -> tuple[torch.Tensor, torch.Tensor]:
-    """
-    Our models predict the mean of the gamma distribution, but we need the shape and rate parameters.
-    This function converts the mean and dispersion parameter into the shape and rate parameters.
-    Args:
-        mu: the predicted means for the gamma distributions (shape: (n,))
-        phi: the dispersion parameter
-    Returns:
-        alpha: the shape parameter (shape: (n,))
-        beta: the rate parameter (shape: (n,))
-    """
-    beta = 1.0 / (mu * phi)
-    alpha = (1.0 / phi) * torch.ones_like(beta)
-    return alpha, beta
-
-
-def gaussian_estimate_sigma(mu: torch.Tensor, y: torch.Tensor) -> float:
-    """
-    For a Gaussian GLM, the dispersion parameter is estimated using the method of moments.
-    Args:
-        mu: the predicted means for the Gaussian distributions (shape: (n, 1))
-        y: the observed values (shape: (n, 1))
-        p: the number of features
-    """
-    n = mu.shape[0]
-    variance_estimate = torch.sum((y - mu) ** 2) / (n - 1)
-    return (torch.sqrt(variance_estimate)).item()
-
-
-def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p: int):
-    """
-    Estimate the dispersion parameter for different distributions.
-
-    Parameters:
-    distribution (str): The type of distribution ("gamma", "gaussian", "inversegaussian").
-    mu (torch.Tensor): The predicted mean values.
-    y (torch.Tensor): The observed target values.
-    p (int): The number of model parameters.
-
-    Returns:
-    torch.Tensor: The estimated dispersion parameter.
-    """
-    if distribution == "gamma":
-        return gamma_estimate_dispersion(mu, y, p)
-    elif distribution == "gaussian":
-        return gaussian_estimate_sigma(mu, y)
-    elif distribution == "inversegaussian":
-        return inversegaussian_estimate_dispersion(mu, y, p)
-    else:
-        raise ValueError(f"Unsupported distribution: {distribution}")
-
-
-def inversegaussian_estimate_dispersion(
-    mu: torch.Tensor, y: torch.Tensor, p: int
-) -> float:
-    n = mu.shape[0]
-    dof = n - (p + 1)
-    return (torch.sum(((y - mu) ** 2) / (mu**3)) / dof).item()
-
-
-class InverseGaussianTorch(torch.distributions.Distribution):
-    def __init__(self, mean: torch.Tensor, dispersion: torch.Tensor):
-        self.mu = mean
-        self.dispersion = dispersion
-
-    def log_prob(self, y: torch.Tensor) -> torch.Tensor:
-        term1 = -0.5 * torch.log(2 * torch.pi * self.dispersion * y**3)
-        term2 = -((y - self.mu) ** 2) / (2 * self.dispersion * y * self.mu**2)
-        return term1 + term2
-
-    @property
-    def mean(self) -> torch.Tensor:
-        return self.mu
-
-    def cdf(self, y: torch.Tensor) -> torch.Tensor:
-        lambda_ = 1.0 / self.dispersion
-
-        sqrt_term = torch.sqrt(lambda_ / y)
-        z1 = sqrt_term * (y / self.mu - 1.0)
-        z2 = -sqrt_term * (y / self.mu + 1.0)
-
-        standard_normal = torch.distributions.Normal(0.0, 1.0)
-        term1 = standard_normal.cdf(z1)
-        term2 = torch.exp(2.0 * lambda_ / self.mu) * standard_normal.cdf(z2)
-
-        return term1 + term2
-
-
-def _to_numpy(data):
-    """Convert input data to numpy array with float32 precision."""
-    if isinstance(data, torch.Tensor):
-        return data.detach().cpu().numpy().astype(np.float32)
-    elif isinstance(data, (pd.DataFrame, pd.Series)):
-        return data.values.astype(np.float32)
-    elif isinstance(data, np.ndarray):
-        return data.astype(np.float32)
-    else:
-        return np.asarray(data, dtype=np.float32)
