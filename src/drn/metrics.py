@@ -36,7 +36,7 @@ def crps(
     dy = grid[1] - grid[0]
 
     # Calculate the Heaviside step function values for each x and y_grid value
-    heaviside_matrix = (grid >= obs.unsqueeze(1)).type(torch.float32)
+    heaviside_matrix = (grid >= obs.unsqueeze(1)).type(torch.float32).squeeze()
 
     # Compute the CRPS values for each x and CDF_grid pair
     crps_values = torch.sum((cdf_on_grid - heaviside_matrix) ** 2, dim=1) * dy

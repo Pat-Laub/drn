@@ -131,4 +131,4 @@ class BaseModel(L.LightningModule, abc.ABC):
             return arr.to(device=self.device)
         elif isinstance(arr, pd.DataFrame) or isinstance(arr, pd.Series):
             arr = arr.values
-        return torch.Tensor(arr, device=self.device)
+        return torch.Tensor(arr).to(self.device)
