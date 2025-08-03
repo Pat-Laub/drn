@@ -44,11 +44,7 @@ class DRN(BaseModel):
         for param in self.glm.parameters():
             param.requires_grad = False
 
-        layers = [
-            nn.Linear(baseline.p, hidden_size),
-            nn.LeakyReLU(),
-            nn.Dropout(dropout_rate),
-        ]
+        layers = [nn.LazyLinear(hidden_size), nn.LeakyReLU(), nn.Dropout(dropout_rate)]
         for _ in range(num_hidden_layers - 1):
             layers.append(nn.Linear(hidden_size, hidden_size))
             layers.append(nn.LeakyReLU())

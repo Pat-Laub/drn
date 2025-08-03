@@ -298,14 +298,18 @@ def test_drn_train_vs_fit_equivalence():
     base_cps = ddr_cutpoints(c0, cK, proportion=0.1, n=len(y_train_np))
     drn_cps = merge_cutpoints(base_cps, y_train_np, min_obs=2)
 
+    x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
+
     # 1) train(...) version
     torch.manual_seed(seed)
     drn1 = DRN(glm1, cutpoints=drn_cps, hidden_size=32)
+    _ = drn1.forward(x_obs)  # trigger LazyLinear init
     train(drn1, train_ds, val_ds, epochs=2)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
     drn2 = DRN(glm2, cutpoints=drn_cps, hidden_size=32)
+    _ = drn2.forward(x_obs)  # trigger LazyLinear init
     drn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
 
     # compare parameters (ignore dispersion parameter)
