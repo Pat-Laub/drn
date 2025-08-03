@@ -5,24 +5,15 @@
 This section provides a minimal working example of how to use the `drn` package to train a Distributional Refinement Network (DRN) on a synthetic dataset.
 
 ```python
-from drn import GLM, DRN, drn_cutpoints, train
+from drn import GLM, DRN
 import pandas as pd
-import torch
 
 DATA_URL = "https://raw.githubusercontent.com/agi-lab/DRN/refs/heads/main/data/processed/synth/"
-X_train = torch.Tensor(pd.read_csv(DATA_URL + "x_train.csv").values)
-X_val = torch.Tensor(pd.read_csv(DATA_URL + "x_val.csv").values)
-y_train = torch.Tensor(pd.read_csv(DATA_URL + "y_train.csv").values).flatten()
-y_val = torch.Tensor(pd.read_csv(DATA_URL + "y_val.csv").values).flatten()
-train_dataset = torch.utils.data.TensorDataset(X_train, y_train)
-val_dataset = torch.utils.data.TensorDataset(X_val, y_val)
+X_train = pd.read_csv(DATA_URL + "x_train.csv")
+y_train = pd.read_csv(DATA_URL + "y_train.csv")
 
-c_0, c_K = 0, y_train.max().item() * 1.1
-cutpoints = drn_cutpoints(c_0, c_K, proportion=0.1, y=y_train)
-glm = GLM.from_statsmodels(X_train, y_train, distribution="gamma")
-
-drn_model = DRN(glm, cutpoints, hidden_size=128, num_hidden_layers=2)
-train(drn_model, train_dataset, val_dataset, batch_size=256, epochs=10)
+glm_model = GLM(distribution="gamma").fit(X_train, y_train)
+drn_model = DRN(glm_model).fit(X_train, y_train)
 ```
 
 Read on for more details on how to use the `drn` package, including installation instructions, examples of training a DRN, and how to interpret the results.
@@ -149,6 +140,8 @@ You can choose to split and preprocess the dataset as you wish.
 The following is just an example to generate a training and validation dataset compatible for training using PyTorch.
 
 ``` python
+import torch
+
 # Preprocess and split the data
 x_train, x_val, x_test, y_train, y_val, y_test, \
 x_train_raw, x_val_raw, x_test_raw, \
@@ -181,7 +174,8 @@ Below, we use the GLM from statsmodels.
 You don't need to add the intercept term, just pass in X_train and Y_train as torch tensors.
 
 ``` python
-baseline = GLM.from_statsmodels(X_train, Y_train, distribution='gaussian')
+baseline = GLM(distribution='gaussian')
+baseline.fit(X_train, Y_train)
 ``` 
 
 Alternatively, you can train a GLM using the SGD method.
@@ -190,23 +184,9 @@ We currently support the 'gaussian' and 'gamma' distributions for the neural net
 ``` python
 # Initialise and train the baseline GLM model
 torch.manual_seed(23)
-baseline = GLM(X_train.shape[1], distribution='gaussian')
-
-train(
-    baseline,
-    models.gaussian_deviance_loss,
-    train_dataset,
-    val_dataset,
-    log_interval=10,
-    epochs=5000,
-    lr=0.001,
-    patience=100,
-    batch_size=100
-)
-
-# Update dispersion parameters for the baseline model
-baseline.update_dispersion(X_train, Y_train)
-baseline.eval()
+baseline = GLM(distribution='gaussian')
+baseline.fit(X_train, Y_train, grad_descent=True, 
+             epochs=5000, lr=0.001, patience=100, batch_size=100)
 ```
 
 ### DRN Deep Learning Component
