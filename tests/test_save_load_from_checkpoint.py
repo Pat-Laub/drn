@@ -38,10 +38,10 @@ def test_glm_checkpoint():
     trainer.fit(glm_model, train_loader, val_loader)
     glm_model.update_dispersion(X_train, Y_train)
 
-    # save to temp file
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        glm_loaded = GLM.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "glm.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        glm_loaded = GLM.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in glm_model.named_parameters():
@@ -75,9 +75,10 @@ def test_cann_checkpoint():
     trainer.fit(cann_model, train_loader, val_loader)
     cann_model.update_dispersion(X_train, Y_train)
 
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        cann_loaded = CANN.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "cann.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        cann_loaded = CANN.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in cann_model.named_parameters():
@@ -109,9 +110,10 @@ def test_mdn_checkpoint():
     )
     trainer.fit(mdn_model, train_loader, val_loader)
 
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        mdn_loaded = MDN.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "mdn.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        mdn_loaded = MDN.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in mdn_model.named_parameters():
@@ -142,9 +144,10 @@ def test_ddr_checkpoint():
     )
     trainer.fit(ddr_model, train_loader, val_loader)
 
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        ddr_loaded = DDR.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "ddr.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        ddr_loaded = DDR.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in ddr_model.named_parameters():
@@ -181,9 +184,10 @@ def test_drn_checkpoint():
     drn_model = DRN(glm, cut_drn, hidden_size=100)
     trainer.fit(drn_model, train_loader, val_loader)
 
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        drn_loaded = DRN.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "drn.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        drn_loaded = DRN.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in drn_model.named_parameters():
@@ -216,9 +220,10 @@ def test_torch_compat_checkpoint():
     )
     trainer.fit(drn_model, train_loader, val_loader)
 
-    with tempfile.NamedTemporaryFile(suffix=".ckpt") as tmp:
-        trainer.save_checkpoint(tmp.name)
-        drn_loaded = DRN.load_from_checkpoint(tmp.name)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = os.path.join(tmpdir, "drn.ckpt")
+        trainer.save_checkpoint(ckpt_path)
+        drn_loaded = DRN.load_from_checkpoint(ckpt_path)
 
     # compare weights
     for name, param in drn_model.named_parameters():
