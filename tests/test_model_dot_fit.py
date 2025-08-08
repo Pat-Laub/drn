@@ -61,6 +61,7 @@ def test_glm():
     Xvl_df = pd.DataFrame(X_val, columns=Xtr_df.columns)
     yvl_sr = pd.Series(y_val, name="Y")
 
+    torch.manual_seed(1)
     glm_pd = GLM(distribution="gamma")
     # one short epoch just to confirm no errors
     glm_pd.fit(Xtr_df, ytr_sr, Xvl_df, yvl_sr, epochs=1)

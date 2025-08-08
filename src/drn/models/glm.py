@@ -35,15 +35,7 @@ class GLM(BaseModel):
 
         self.learning_rate = learning_rate
         self.p = p
-        if self.p is not None:
-            self._initialise_weights()
-
-    def _initialise_weights(self):
-        self.linear = nn.Linear(self.p, 1, bias=True)
-
-        # Set weights and bias to zero
-        self.linear.weight.data.fill_(0.0)
-        self.linear.bias.data.fill_(0.0)
+        self.linear = nn.LazyLinear(1)
 
     def fit(
         self,
@@ -55,9 +47,7 @@ class GLM(BaseModel):
         *args,
         **kwargs,
     ) -> GLM:
-        if self.p is None:
-            self.p = X_train.shape[1]
-            self._initialise_weights()
+        self.p = X_train.shape[1]
 
         # If the user specifically wants to use gradient descent, we will use the base class fit method
         if grad_descent:
@@ -89,8 +79,10 @@ class GLM(BaseModel):
         # Extract coefficients
         betas = results.params
         betas = np.asarray(betas)
+
         # Assign to PyTorch model
         # weights: shape (1, p), bias: intercept
+        self.linear = nn.Linear(self.p, 1)
         self.linear.weight.data = torch.Tensor(betas[1:]).unsqueeze(0)
         self.linear.bias.data = torch.Tensor([betas[0]])
 

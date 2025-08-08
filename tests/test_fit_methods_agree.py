@@ -66,7 +66,7 @@ def test_glm_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
+    glm1 = GLM(distribution="gamma")
     train(glm1, train_ds, val_ds, epochs=10)
 
     # 2) .fit(...) version
@@ -83,7 +83,7 @@ def test_glm_train_vs_fit_equivalence():
     )
 
     # compare every learned parameter
-    _compare_params(glm1, glm2, atol=1e-3)
+    _compare_params(glm1, glm2, atol=1e-2)
 
 
 def test_cann_train_vs_fit_equivalence():

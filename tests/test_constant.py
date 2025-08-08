@@ -2,6 +2,7 @@ import pytest
 import torch
 import numpy as np
 import pandas as pd
+import torch.nn as nn
 
 from drn import Constant, InverseGaussian, GLM
 from torch.distributions import Gamma, Normal
@@ -88,17 +89,25 @@ def test_invalid_distribution_raises():
         Constant("unsupported")
 
 
-def test_equivalence_with_default_glm():
-    # Constant without fit should match GLM without fit
+def test_equivalence_with_zeroed_glm():
+    # Dummy input batch of size 3
+    p = 2
+    x = torch.randn((3, p))
+
+    # Constant without fit should match GLM without fit (if we zero-out the parameters)
     for dist in ("gamma", "gaussian", "inversegaussian"):
         const = Constant(dist)
-        glm = GLM(distribution=dist, p=2)
-        # Dummy input batch of size 3
-        x = torch.randn((3, 2))
+        glm = GLM(distribution=dist, p=p)
+
+        glm.linear = nn.Linear(p, 1, bias=True)
+        glm.linear.weight.data.fill_(0.0)
+        glm.linear.bias.data.fill_(0.0)
+
         # forward matches
         out_c = const(x)
         out_g = glm(x)
         assert torch.allclose(out_c, out_g)
+
         # dispersion matches
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
         # distribution parameters match
@@ -113,16 +122,6 @@ def test_equivalence_with_default_glm():
         else:
             assert torch.allclose(torch.tensor(d1.mean), torch.tensor(d2.mean))
             assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
-
-
-def test_equivalence_with_null_glm_constructor():
-    # GLM null_model=True constructor also sets zero coeffs & unit dispersion
-    for dist in ("gamma", "gaussian", "inversegaussian"):
-        const = Constant(dist)
-        glm = GLM(distribution=dist, p=2)
-        x = torch.randn((4, 2))
-        assert torch.allclose(const(x), glm(x))
-        assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
 
 
 def test_quantiles_method_exists():
