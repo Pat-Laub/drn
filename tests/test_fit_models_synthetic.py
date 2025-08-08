@@ -30,7 +30,7 @@ def test_glm():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
-    glm = GLM(distribution="gamma", p=X_train.shape[1])
+    glm = GLM("gamma")
     train(glm, train_dataset, val_dataset, epochs=2)
 
     glm.update_dispersion(X_train, Y_train)
@@ -43,7 +43,7 @@ def test_cann():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(2)
-    glm = GLM(distribution="gamma", p=X_train.shape[1])
+    glm = GLM("gamma")
     train(glm, train_dataset, val_dataset, epochs=2)
 
     cann = CANN(glm, num_hidden_layers=2, hidden_size=100)
@@ -59,7 +59,7 @@ def test_mdn():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(3)
-    mdn = MDN(num_components=5, distribution="gamma")
+    mdn = MDN("gamma", num_components=4)
     train(mdn, train_dataset, val_dataset, epochs=2)
 
     check_crps(mdn, X_train, Y_train)
@@ -100,7 +100,7 @@ def test_drn():
     assert len(cutpoints_drn) >= 2
 
     torch.manual_seed(5)
-    glm = GLM(distribution="gamma", p=X_train.shape[1])
+    glm = GLM("gamma")
     train(glm, train_dataset, val_dataset, epochs=2)
     glm.update_dispersion(X_train, Y_train)
 
@@ -183,17 +183,17 @@ def test_fit_chain():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(6)
-    glm = GLM(distribution="gamma", p=X_train.shape[1]).fit(X_train, Y_train)
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     cann = CANN(glm).fit(X_train, Y_train)
 
-    mdn = MDN(num_components=5, distribution="gamma").fit(X_train, Y_train)
+    mdn = MDN("gamma", num_components=5).fit(X_train, Y_train)
 
     ddr = DDR().fit(X_train, Y_train)
 
     drn = DRN(glm).fit(X_train, Y_train)
 
-    constant = Constant(distribution="gamma").fit(X_train, Y_train)
+    constant = Constant("gamma").fit(X_train, Y_train)
 
     # Check that none are None
     assert glm is not None, "GLM fit returned None"

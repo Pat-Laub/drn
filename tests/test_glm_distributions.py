@@ -9,7 +9,7 @@ def test_glm_mean():
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
-    glm = GLM(distribution="gamma", p=X_train.shape[1])
+    glm = GLM("gamma")
     train(glm, train_dataset, val_dataset, epochs=2)
 
     # Either we call 'train' to move to same device as 'X_train', or do it manually
@@ -30,7 +30,7 @@ def test_glm_save_load():
 
     torch.save(glm.state_dict(), "glm.pt")
 
-    glm_load = GLM(distribution="gamma", p=X_train.shape[1]).to(X_train.device)
+    glm_load = GLM("gamma").to(X_train.device)
     glm_load.load_state_dict(torch.load("glm.pt"))
 
     os.remove("glm.pt")

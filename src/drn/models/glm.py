@@ -15,7 +15,7 @@ from ..utils import _to_numpy
 
 
 class GLM(BaseModel):
-    def __init__(self, distribution: str, p: Optional[int] = None, learning_rate=1e-3):
+    def __init__(self, distribution: str, learning_rate=1e-3):
         self.save_hyperparameters()
 
         if distribution not in ("gamma", "gaussian", "inversegaussian", "lognormal"):
@@ -34,7 +34,6 @@ class GLM(BaseModel):
         )
 
         self.learning_rate = learning_rate
-        self.p = p
         self.linear = nn.LazyLinear(1)
 
     def fit(
@@ -47,8 +46,6 @@ class GLM(BaseModel):
         *args,
         **kwargs,
     ) -> GLM:
-        self.p = X_train.shape[1]
-
         # If the user specifically wants to use gradient descent, we will use the base class fit method
         if grad_descent:
             super().fit(X_train, y_train, *args, **kwargs)
@@ -82,7 +79,7 @@ class GLM(BaseModel):
 
         # Assign to PyTorch model
         # weights: shape (1, p), bias: intercept
-        self.linear = nn.Linear(self.p, 1)
+        self.linear = nn.Linear(X_train.shape[1], 1)
         self.linear.weight.data = torch.Tensor(betas[1:]).unsqueeze(0)
         self.linear.bias.data = torch.Tensor([betas[0]])
 
@@ -104,7 +101,7 @@ class GLM(BaseModel):
         """
         Create an independent copy of the model.
         """
-        glm = GLM(self.distribution, p=self.p)
+        glm = GLM(self.distribution)
         glm.load_state_dict(self.state_dict())
         return glm
 
@@ -132,7 +129,7 @@ class GLM(BaseModel):
     ) -> None:
         X = self.preprocess(X_train)
         y = self.preprocess(y_train)
-        disp = estimate_dispersion(self.distribution, self(X), y, self.p)
+        disp = estimate_dispersion(self.distribution, self(X), y, X_train.shape[1])
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: torch.Tensor) -> torch.Tensor:

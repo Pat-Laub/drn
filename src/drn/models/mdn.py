@@ -17,11 +17,11 @@ class MDN(BaseModel):
 
     def __init__(
         self,
+        distribution="gamma",
         num_hidden_layers=2,
         num_components=5,
         hidden_size=100,
         dropout_rate=0.2,
-        distribution="gamma",
         learning_rate=1e-3,
     ):
         """

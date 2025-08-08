@@ -97,7 +97,7 @@ def test_equivalence_with_zeroed_glm():
     # Constant without fit should match GLM without fit (if we zero-out the parameters)
     for dist in ("gamma", "gaussian", "inversegaussian"):
         const = Constant(dist)
-        glm = GLM(distribution=dist, p=p)
+        glm = GLM(dist)
 
         glm.linear = nn.Linear(p, 1, bias=True)
         glm.linear.weight.data.fill_(0.0)

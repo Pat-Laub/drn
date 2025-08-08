@@ -14,16 +14,16 @@ class TestQuantilesConsistency:
     def test_quantiles_method_exists_all_models(self):
         """Test that all models have quantiles method."""
         models = [
-            GLM("gamma", p=2),
-            GLM("gaussian", p=2),
-            GLM("inversegaussian", p=2),
+            GLM("gamma"),
+            GLM("gaussian"),
+            GLM("inversegaussian"),
             Constant("gamma"),
             Constant("gaussian"),
             Constant("inversegaussian"),
-            CANN(GLM("gamma", p=2)),
+            CANN(GLM("gamma")),
             CANN(Constant("gamma")),
-            MDN(distribution="gamma"),
-            MDN(distribution="gaussian"),
+            MDN("gamma"),
+            MDN("gaussian"),
         ]
 
         for model in models:
@@ -48,7 +48,7 @@ class TestQuantilesConsistency:
 
         # Test GLM models
         for dist in ["gamma", "gaussian", "inversegaussian"]:
-            model = GLM(dist, p=n_features)
+            model = GLM(dist)
             quantiles = model.quantiles(X_test, percentiles)
             assert quantiles.shape == (
                 len(percentiles),
@@ -73,7 +73,7 @@ class TestQuantilesConsistency:
         y_train = np.random.gamma(2, 2, 50)  # Positive values for gamma
 
         # Test different models
-        models = [GLM("gamma", p=2), Constant("gamma")]
+        models = [GLM("gamma"), Constant("gamma")]
 
         X_test = np.random.randn(5, 2)
         percentiles = [5, 25, 50, 75, 95]

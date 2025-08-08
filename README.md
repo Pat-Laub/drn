@@ -12,7 +12,7 @@ DATA_URL = "https://raw.githubusercontent.com/agi-lab/DRN/refs/heads/main/data/p
 X_train = pd.read_csv(DATA_URL + "x_train.csv")
 y_train = pd.read_csv(DATA_URL + "y_train.csv")
 
-glm_model = GLM(distribution="gamma").fit(X_train, y_train)
+glm_model = GLM("gamma").fit(X_train, y_train)
 drn_model = DRN(glm_model).fit(X_train, y_train)
 ```
 
@@ -174,7 +174,7 @@ Below, we use the GLM from statsmodels.
 You don't need to add the intercept term, just pass in X_train and Y_train as torch tensors.
 
 ``` python
-baseline = GLM(distribution='gaussian')
+baseline = GLM('gaussian')
 baseline.fit(X_train, Y_train)
 ``` 
 
@@ -184,7 +184,7 @@ We currently support the 'gaussian' and 'gamma' distributions for the neural net
 ``` python
 # Initialise and train the baseline GLM model
 torch.manual_seed(23)
-baseline = GLM(distribution='gaussian')
+baseline = GLM('gaussian')
 baseline.fit(X_train, Y_train, grad_descent=True, 
              epochs=5000, lr=0.001, patience=100, batch_size=100)
 ```

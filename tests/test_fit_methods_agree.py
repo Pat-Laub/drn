@@ -36,25 +36,6 @@ def _compare_params(m1, m2, atol=1e-6, ignore_dispersion=True):
         ), f"Parameters are not close enough: {p1} vs {p2} (close={close}, both_nan={both_nan})"
 
 
-def test_glm_fit_eager_lazy():
-    seed = 42
-    # get torch tensors + datasets
-    X_train, y_train, X_val, y_val = generate_synthetic_data()
-
-    # 1) Eager
-    torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma", p=X_train.shape[1])
-    glm1.fit(X_train, y_train)
-
-    # 2) Lazy
-    torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma")
-    glm2.fit(X_train, y_train)
-
-    # compare every learned parameter
-    _compare_params(glm1, glm2)  # , atol=1e-3)
-
-
 def test_glm_train_vs_fit_equivalence():
     """GLM trained via `train(...)` vs. via `.fit(...)` should end up identical."""
     seed = 42
@@ -66,12 +47,12 @@ def test_glm_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma")
+    glm1 = GLM("gamma")
     train(glm1, train_ds, val_ds, epochs=10)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma")
+    glm2 = GLM("gamma")
     glm2.fit(
         X_train_np,
         y_train_np,
@@ -97,7 +78,7 @@ def test_cann_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma")
+    glm1 = GLM("gamma")
     glm1.fit(X_train_np, y_train_np)
 
     x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
@@ -108,7 +89,7 @@ def test_cann_train_vs_fit_equivalence():
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma")
+    glm2 = GLM("gamma")
     glm2.fit(X_train_np, y_train_np)
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
@@ -131,13 +112,13 @@ def test_mdn_train_vs_fit_equivalence():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    mdn1 = MDN(num_components=4, distribution="gamma")
+    mdn1 = MDN("gamma", num_components=4)
     _ = mdn1(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    mdn2 = MDN(num_components=4, distribution="gamma")
+    mdn2 = MDN("gamma", num_components=4)
     _ = mdn2(x_obs)  # trigger LazyLinear init
     mdn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
@@ -154,12 +135,12 @@ def test_glm_train_vs_fit_early_stopping_equivalence():
 
     # 1) train(...) version with patience=1
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
+    glm1 = GLM("gamma")
     train(glm1, train_ds, val_ds, epochs=10, patience=3)
 
     # 2) .fit(...) version with the same epochs & patience
     torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma")
+    glm2 = GLM("gamma")
     glm2.fit(
         X_train_np,
         y_train_np,
@@ -186,7 +167,7 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
 
     # 1) train(...) version
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma")
+    glm1 = GLM("gamma")
     glm1.fit(X_train_np, y_train_np)
 
     x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
@@ -197,7 +178,7 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma")
+    glm2 = GLM("gamma")
     glm2.fit(X_train_np, y_train_np)
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
@@ -228,13 +209,13 @@ def test_mdn_train_vs_fit_early_stopping_equivalence():
 
     # 1) train(...) version with patience=2
     torch.manual_seed(seed)
-    mdn1 = MDN(num_components=4, distribution="gamma")
+    mdn1 = MDN("gamma", num_components=4)
     _ = mdn1(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=10, patience=2)
 
     # 2) .fit(...) version with the same epochs & patience
     torch.manual_seed(seed)
-    mdn2 = MDN(num_components=4, distribution="gamma")
+    mdn2 = MDN("gamma", num_components=4)
     _ = mdn2(x_obs)  # trigger LazyLinear init
     mdn2.fit(
         X_train_np, y_train_np, X_val_np, y_val_np, epochs=10, patience=2, **FIT_KW
@@ -283,12 +264,12 @@ def test_drn_train_vs_fit_equivalence():
 
     # prepare base GLM and estimate dispersion
     torch.manual_seed(seed)
-    glm1 = GLM(distribution="gamma", p=X_t.shape[1])
+    glm1 = GLM("gamma")
     train(glm1, train_ds, val_ds, epochs=2)
     glm1.update_dispersion(X_t, y_t)
 
     torch.manual_seed(seed)
-    glm2 = GLM(distribution="gamma", p=X_t.shape[1])
+    glm2 = GLM("gamma")
     train(glm2, train_ds, val_ds, epochs=2)
     glm2.update_dispersion(X_t, y_t)
 
