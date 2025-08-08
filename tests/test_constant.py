@@ -125,37 +125,6 @@ def test_equivalence_with_null_glm_constructor():
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
 
 
-def test_equivalence_with_from_statsmodels_null_model():
-    # Compare Constant against GLM.from_statsmodels null_model=True
-    for dist in ("gamma", "gaussian", "inversegaussian"):
-        # sample data
-        n, p = 6, 3
-        y = np.linspace(1.0, 3.0, n, dtype=float)
-        x = torch.randn((n, p))
-
-        # fit constant
-        const = Constant(dist)
-        const.fit(X_train=None, y_train=y)
-
-        # obtain statsmodels null GLM
-        glm_null = GLM.from_statsmodels(
-            x, torch.from_numpy(y).float(), distribution=dist, null_model=True
-        )
-        glm_null.eval()
-
-        # predictions should match
-        pred_c = const(x)
-        pred_g = glm_null(x)
-        assert torch.allclose(pred_c, pred_g, atol=1e-6)
-
-        # distribution means match
-        d_c = const.predict(x)
-        d_g = glm_null.predict(x)
-        mean_c = d_c.mean if hasattr(d_c, "mean") else torch.tensor(d_c.mean)
-        mean_g = d_g.mean if hasattr(d_g, "mean") else torch.tensor(d_g.mean)
-        assert torch.allclose(mean_c, mean_g, atol=1e-6)
-
-
 def test_quantiles_method_exists():
     """Test that the quantiles method exists and is callable."""
     for dist in ("gamma", "gaussian", "inversegaussian"):

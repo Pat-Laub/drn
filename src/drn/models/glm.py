@@ -79,7 +79,6 @@ class GLM(BaseModel):
         X: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
         y: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
         distribution: str,
-        null_model: bool = False,
     ):
         # Convert inputs to numpy arrays with float32 precision
         X = _to_numpy(X)
@@ -99,12 +98,7 @@ class GLM(BaseModel):
             family = InverseGaussian(link=sm.families.links.Log())
 
         # Fit the GLM model
-        if null_model:
-            # Just input the constant without covariates
-            ones = np.ones((X.shape[0], 1))
-            model = sm.GLM(y, ones, family=family)
-        else:
-            model = sm.GLM(y, sm.add_constant(X), family=family)
+        model = sm.GLM(y, sm.add_constant(X), family=family)
 
         results = model.fit()
         betas = results.params
@@ -113,11 +107,7 @@ class GLM(BaseModel):
 
         # Create PyTorch GLM instance
         torch_glm = GLM(distribution, p=p)
-        torch_glm.linear.weight.data = (
-            torch.Tensor(betas[1:]).unsqueeze(0)
-            if not null_model
-            else torch.zeros((1, p))
-        )
+        torch_glm.linear.weight.data = torch.Tensor(betas[1:]).unsqueeze(0)
         torch_glm.linear.bias.data = torch.Tensor([betas[0]])
 
         # Set dispersion parameter
