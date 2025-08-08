@@ -133,7 +133,7 @@ def test_torch():
     cutpoints = setup_cutpoints(Y_train)
 
     torch.manual_seed(5)
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     hs = 5
     drn_model = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs)

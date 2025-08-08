@@ -38,70 +38,6 @@ def test_glm():
     check_crps(glm, X_train, Y_train)
 
 
-def test_glm_from_statsmodels():
-    print("\n\nTraining GLM\n")
-    X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
-
-    # Construct GLM given training data in torch tensors
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
-
-    our_dispersion = gamma_estimate_dispersion(glm(X_train), Y_train, X_train.shape[1])
-
-    assert np.isclose(our_dispersion, glm.dispersion.item())
-
-    # Construct GLM given training data in numpy arrays
-    glm = GLM.from_statsmodels(
-        X_train.detach().cpu().numpy(),
-        Y_train.detach().cpu().numpy(),
-        distribution="gamma",
-    )
-    glm = glm.to(
-        X_train.device
-    )  # since 'from_statsmodels' didn't know this information
-    our_dispersion = gamma_estimate_dispersion(glm(X_train), Y_train, X_train.shape[1])
-
-    assert np.isclose(our_dispersion, glm.dispersion.item())
-
-    # Check we avoid this 'iloc' warning when training on pandas data types
-    X_df = pd.DataFrame(
-        X_train.detach().cpu().numpy(),
-        columns=[f"X_{i}" for i in range(X_train.shape[1])],
-    )
-    y_ser = pd.Series(Y_train.detach().cpu().numpy(), name="Y")
-    glm = GLM.from_statsmodels(X_df, y_ser, distribution="gaussian")
-
-    # Check that pandas objects from split_and_preprocess
-    num_features = ["X_0", "X_1", "X_2", "X_3"]
-    cat_features = []
-    x_train_raw, x_val_raw, x_test_raw, y_train, y_val, y_test = split_data(
-        X_df, y_ser, seed=42, train_size=0.6, val_size=0.2
-    )
-    x_train, x_val, x_test, ct, all_categories = preprocess_data(
-        x_train_raw,
-        x_val_raw,
-        x_test_raw,
-        num_features=num_features,
-        cat_features=cat_features,
-        num_standard=True,
-    )
-
-    glm = GLM.from_statsmodels(x_train, y_train, distribution="gamma")
-    glm = glm.to(X_train.device)
-
-    # Check that statsmodels predictions are just the same as ours
-    # Choose the correct family based on the distribution
-    model = sm.GLM(
-        y_train, sm.add_constant(x_train), family=Gamma(link=sm.families.links.Log())
-    )
-    results = model.fit()
-    statsmodels_predictions = results.predict(sm.add_constant(x_train))
-
-    X_train = torch.Tensor(x_train.values, device=X_train.device)
-    our_predictions = glm(X_train).detach().cpu().numpy()
-
-    assert np.allclose(statsmodels_predictions, our_predictions)
-
-
 def test_cann():
     print("\n\nTraining CANN\n")
     X_train, Y_train, train_dataset, val_dataset = generate_synthetic_tensordataset()
@@ -204,7 +140,7 @@ def test_torch():
     cutpoints = setup_cutpoints(Y_train)
 
     torch.manual_seed(5)
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     hs = 5
     drn = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=hs)

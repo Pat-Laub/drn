@@ -68,33 +68,24 @@ def test_glm():
     check_crps(glm_pd, Xtr_df, ytr_sr)
 
 
-def test_glm_from_statsmodels():
+def test_glm_fit_with_statsmodels():
     X_train, y_train, _, _ = generate_synthetic_data()
 
     # tensor‐based
-    glm1 = GLM.from_statsmodels(
-        _to_tensor(X_train), _to_tensor(y_train), distribution="gamma"
-    )
+    glm1 = GLM("gamma").fit(_to_tensor(X_train), _to_tensor(y_train))
     d1 = gamma_estimate_dispersion(
         glm1(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
     )
     assert np.isclose(d1, glm1.dispersion.item())
 
-    # numpy‐based
-    glm2 = GLM.from_statsmodels(X_train, y_train, distribution="gamma").to(
-        _to_tensor(X_train).device
-    )
-    d2 = gamma_estimate_dispersion(
-        glm2(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
-    )
-    assert np.isclose(d2, glm2.dispersion.item())
+    # numpy-based
+    glm2 = GLM("gamma").fit(X_train, y_train)
+    assert np.isclose(d1, glm2.dispersion.item())
 
     # pandas‐based, compare to statsmodels predictions
     X_df = pd.DataFrame(X_train, columns=[f"X{i}" for i in range(X_train.shape[1])])
     y_sr = pd.Series(y_train, name="Y")
-    glm3 = GLM.from_statsmodels(X_df, y_sr, distribution="gamma").to(
-        _to_tensor(X_df).device
-    )
+    glm3 = GLM("gamma").fit(X_df, y_sr)
 
     sm_mod = sm.GLM(
         y_sr, sm.add_constant(X_df), family=Gamma(link=sm.families.links.Log())
@@ -214,9 +205,7 @@ def test_torch_api():
     cps = setup_cutpoints(y_train)
 
     torch.manual_seed(5)
-    glm = GLM.from_statsmodels(
-        _to_tensor(X_train), _to_tensor(y_train), distribution="gamma"
-    )
+    glm = GLM("gamma").fit(X_train, y_train)
 
     hs = 5
     drn1 = DRN(glm, cps, num_hidden_layers=2, hidden_size=hs)
@@ -390,7 +379,7 @@ def test_pandas_and_tensor_inputs_agree():
     y_train_tensor = torch.Tensor(y_train_pd.values).flatten()
     y_val_tensor = torch.Tensor(y_val_pd.values).flatten()
 
-    glm = GLM.from_statsmodels(X_train_pd, y_train_pd, distribution="gamma")
+    glm = GLM("gamma").fit(X_train_pd, y_train_pd)
 
     torch.manual_seed(23)
     drn_model = DRN(

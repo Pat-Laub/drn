@@ -65,62 +65,43 @@ class GLM(BaseModel):
             self.update_dispersion(X_train, y_train)
             return self
 
-        # But by default, fit using statsmodels and copy the parameters
-        fitted_glm = self.from_statsmodels(X_train, y_train, self.distribution)
-        self.linear.weight.data = fitted_glm.linear.weight.data.clone()
-        self.linear.bias.data = fitted_glm.linear.bias.data.clone()
-        self.dispersion = nn.Parameter(
-            fitted_glm.dispersion.data.clone(), requires_grad=False
-        )
-        return self
+        # Otherwise, fit via statsmodels and directly assign parameters
+        X_np = _to_numpy(X_train)
+        y_np = _to_numpy(y_train).flatten()
 
-    @staticmethod
-    def from_statsmodels(
-        X: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
-        y: Union[np.ndarray, torch.Tensor, pd.DataFrame, pd.Series],
-        distribution: str,
-    ):
-        # Convert inputs to numpy arrays with float32 precision
-        X = _to_numpy(X)
-        y = _to_numpy(y).flatten()
+        # Log-transform for lognormal
+        if self.distribution == "lognormal":
+            y_np = np.log(y_np)
 
-        p = X.shape[1]
-
-        if distribution == "lognormal":
-            y = np.log(y)
-
-        # Choose the correct family
-        if distribution == "gamma":
+        # Select family
+        if self.distribution == "gamma":
             family = Gamma(link=sm.families.links.Log())
-        elif distribution in ["gaussian", "lognormal"]:
+        elif self.distribution in ["gaussian", "lognormal"]:
             family = Gaussian()
-        elif distribution == "inversegaussian":
+        elif self.distribution == "inversegaussian":
             family = InverseGaussian(link=sm.families.links.Log())
 
-        # Fit the GLM model
-        model = sm.GLM(y, sm.add_constant(X), family=family)
-
+        # Add constant for intercept
+        X_sm = sm.add_constant(X_np)
+        model = sm.GLM(y_np, X_sm, family=family)
         results = model.fit()
+
+        # Extract coefficients
         betas = results.params
-        if not isinstance(results.params, np.ndarray):
-            betas = np.asarray(betas)
+        betas = np.asarray(betas)
+        # Assign to PyTorch model
+        # weights: shape (1, p), bias: intercept
+        self.linear.weight.data = torch.Tensor(betas[1:]).unsqueeze(0)
+        self.linear.bias.data = torch.Tensor([betas[0]])
 
-        # Create PyTorch GLM instance
-        torch_glm = GLM(distribution, p=p)
-        torch_glm.linear.weight.data = torch.Tensor(betas[1:]).unsqueeze(0)
-        torch_glm.linear.bias.data = torch.Tensor([betas[0]])
-
-        # Set dispersion parameter
-        if distribution == "gamma":
+        # Dispersion: scale parameter
+        if self.distribution in ("gamma", "inversegaussian"):
             disp = results.scale.item()
-        elif distribution == "inversegaussian":
-            disp = results.scale.item()
-        elif distribution in ["gaussian", "lognormal"]:
+        else:  # gaussian, lognormal
             disp = (results.scale**0.5).item()
 
-        torch_glm.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
-
-        return torch_glm
+        self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
+        return self
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         if self.distribution in ["gamma", "inversegaussian"]:

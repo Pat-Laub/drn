@@ -24,7 +24,7 @@ def test_plot_adjustment_factors():
 
     cutpoints = drn_cutpoints(0, 1, y_train, 0.1, 2)
 
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     drn = DRN(glm, cutpoints)
     train(drn, train_dataset, val_dataset, epochs=2)

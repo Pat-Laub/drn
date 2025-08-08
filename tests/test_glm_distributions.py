@@ -26,7 +26,7 @@ def test_glm_save_load():
     X_train, Y_train, _, _ = generate_synthetic_tensordataset()
 
     torch.manual_seed(1)
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     torch.save(glm.state_dict(), "glm.pt")
 

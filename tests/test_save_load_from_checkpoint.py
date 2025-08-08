@@ -212,7 +212,7 @@ def test_torch_compat_checkpoint():
 
     cutpoints = setup_cutpoints(Y_train)
     torch.manual_seed(5)
-    glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
+    glm = GLM("gamma").fit(X_train, Y_train)
 
     drn_model = DRN(glm, cutpoints, num_hidden_layers=2, hidden_size=5)
     trainer = L.Trainer(
