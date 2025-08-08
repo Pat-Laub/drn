@@ -128,12 +128,10 @@ class DRNExplainer:
 
         # Compute probability density functions (PDF) for GLM and DRN models.
         # GLM PDF is calculated from the log probabilities of the distribution.
-        glm_pdf = np.exp(
-            (self.glm.distributions(instance).log_prob(x_grid)).detach().numpy()
-        )
+        glm_pdf = np.exp((self.glm.predict(instance).log_prob(x_grid)).detach().numpy())
 
         # DRN PDF is calculated from the probabilities of the distribution.
-        drn_pdf = self.drn.distributions(instance).prob(x_grid).detach().numpy()
+        drn_pdf = self.drn.predict(instance).prob(x_grid).detach().numpy()
 
         # Setup the plotting environment with specified figure size.
         figure, axes = plt.subplots(1, 1, figsize=figsize)
@@ -234,7 +232,7 @@ class DRNExplainer:
         if other_df_models is not None:
             for idx, DF_model in enumerate(other_df_models):
                 current_pdf = np.exp(
-                    DF_model.distributions(instance).log_prob(x_grid).detach().numpy()
+                    DF_model.predict(instance).log_prob(x_grid).detach().numpy()
                 )
                 plt.plot(
                     x_grid,
@@ -314,10 +312,8 @@ class DRNExplainer:
         ).unsqueeze(-1)
 
         # Calculate GLM and DRN PDFs
-        glm_pdf = np.exp(
-            self.glm.distributions(instance).log_prob(x_grid).detach().numpy()
-        )
-        drn_pdf = self.drn.distributions(instance).prob(x_grid).detach().numpy()
+        glm_pdf = np.exp(self.glm.predict(instance).log_prob(x_grid).detach().numpy())
+        drn_pdf = self.drn.predict(instance).prob(x_grid).detach().numpy()
 
         # Set up the plot
         if axes is not None and figsize is not None:
@@ -351,7 +347,7 @@ class DRNExplainer:
         if other_df_models is not None:
             for idx, DF_model in enumerate(other_df_models):
                 current_pdf = np.exp(
-                    DF_model.distributions(instance).log_prob(x_grid).detach().numpy()
+                    DF_model.predict(instance).log_prob(x_grid).detach().numpy()
                 )
                 plt.plot(
                     x_grid,
@@ -552,7 +548,7 @@ class DRNExplainer:
         if plot_mean_adjustment:
             plt.ylim(bottom=0)
             DP_glm = self.glm.mean(instance).item()
-            DP_drn = self.drn.distributions(instance).mean.item()
+            DP_drn = self.drn.predict(instance).mean.item()
 
             axes.axvline(
                 DP_glm,
@@ -662,8 +658,8 @@ class DRNExplainer:
         )
 
         # Assuming 'cdf_drn' computation is done as you've mentioned
-        cdfs_glm = self.glm.distributions(instance).cdf(grid).detach().numpy()
-        cdfs_drn = self.drn.distributions(instance).cdf(grid).detach().numpy()
+        cdfs_glm = self.glm.predict(instance).cdf(grid).detach().numpy()
+        cdfs_drn = self.drn.predict(instance).cdf(grid).detach().numpy()
 
         # Plotting
         figure, axes = plt.subplots(1, 1, figsize=figsize)
@@ -695,9 +691,7 @@ class DRNExplainer:
         # Other DF Models Plotting
         if other_df_models is not None:
             for idx, DF_model in enumerate(other_df_models):
-                current_cdf = (
-                    DF_model.distributions(instance).cdf(grid).detach().numpy()
-                )
+                current_cdf = DF_model.predict(instance).cdf(grid).detach().numpy()
                 plt.plot(
                     grid,
                     current_cdf,
@@ -706,7 +700,7 @@ class DRNExplainer:
                     alpha=alpha,
                 )
 
-        # cdfs_mdn = mdn.distributions(torch.Tensor([0.5, 0.5]).reshape(1,2)).cdf(grid).detach().numpy()
+        # cdfs_mdn = mdn.predict(torch.Tensor([0.5, 0.5]).reshape(1,2)).cdf(grid).detach().numpy()
         if synthetic_data is not None:
             samples = synthetic_data(
                 n=500000, seed=1, specific_instance=instance.detach().numpy()[0]
@@ -952,12 +946,12 @@ class DRNExplainer:
         """
         if dist_property == "Mean":
             DP_glm = self.glm.mean(instance).detach().numpy()[0] if adjustment else 0
-            DP_drn = self.drn.distributions(instance).mean.detach().numpy()
+            DP_drn = self.drn.predict(instance).mean.detach().numpy()
         elif dist_property == "Variance":
             DP_glm = (
                 self.glm.variance(instance).detach().numpy()[0] if adjustment else 0
             )
-            DP_drn = self.drn.distributions(instance).variance().detach().numpy()
+            DP_drn = self.drn.predict(instance).variance().detach().numpy()
         else:
             percentile = (
                 int(re.search(r"(\d+)% Quantile", dist_property).group(1))
@@ -976,7 +970,7 @@ class DRNExplainer:
                     else 0
                 )
                 DP_drn = (
-                    self.drn.distributions(instance)
+                    self.drn.predict(instance)
                     .quantiles([percentile], l=quantile_bounds[0], u=quantile_bounds[1])
                     .item()
                     if percentile
@@ -989,7 +983,7 @@ class DRNExplainer:
                     else 0
                 )
                 DP_drn = (
-                    self.drn.distributions(instance).quantiles([percentile]).item()
+                    self.drn.predict(instance).quantiles([percentile]).item()
                     if percentile
                     else None
                 )
@@ -1151,8 +1145,8 @@ class DRNExplainer:
         instances = self._to_tensor(instances)
         cutpoints = self._to_tensor(cutpoints)
 
-        cdfs_baseline = self.glm.distributions(instances).cdf(cutpoints.unsqueeze(-1))
-        cdfs_drn = self.drn.distributions(instances).cdf(cutpoints.unsqueeze(-1))
+        cdfs_baseline = self.glm.predict(instances).cdf(cutpoints.unsqueeze(-1))
+        cdfs_drn = self.drn.predict(instances).cdf(cutpoints.unsqueeze(-1))
 
         prob_masses = torch.clamp(torch.diff(cdfs_drn, axis=0), min=1e-12)
         baseline_probs = torch.clamp(torch.diff(cdfs_baseline, axis=0), min=1e-12)
@@ -1175,7 +1169,7 @@ class DRNExplainer:
         """
         instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
         instances = self._to_tensor(self.preprocessor.transform(instances))
-        return self.drn.distributions(instances).mean.detach().numpy()
+        return self.drn.predict(instances).mean.detach().numpy()
 
     def mean_glm(self, instances: npt.NDArray):
         """
@@ -1183,7 +1177,7 @@ class DRNExplainer:
         """
         instances = pd.DataFrame(instances, columns=self.preprocessor.feature_names_in_)
         instances = self._to_tensor(self.preprocessor.transform(instances))
-        return self.glm.distributions(instances).mean.detach().numpy()
+        return self.glm.predict(instances).mean.detach().numpy()
 
     def mean_value_function(self, instances, adjustment):
         """
@@ -1211,7 +1205,7 @@ class DRNExplainer:
         instances = self._to_tensor(self.preprocessor.transform(instances))
 
         return (
-            self.drn.distributions(instances)
+            self.drn.predict(instances)
             .quantiles(percentile, l=grid[0], u=grid[-1] * 1.5)
             .detach()
             .numpy()

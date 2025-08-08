@@ -98,7 +98,7 @@ def quantile_losses(
             X, [p * 100], max_iter=max_iter, tolerance=tolerance, l=l, u=u
         )
     elif model_name in ["DDR", "DRN"]:
-        predicted_quantiles = model.distributions(X).quantiles(
+        predicted_quantiles = model.predict(X).quantiles(
             [p * 100], max_iter=max_iter, tolerance=tolerance, l=l, u=u
         )
 

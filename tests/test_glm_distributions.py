@@ -18,7 +18,7 @@ def test_glm_mean():
     glm.update_dispersion(X_train, Y_train)
 
     mean1 = glm.mean(X_train)
-    mean2 = glm.distributions(X_train).mean
+    mean2 = glm.predict(X_train).mean
     assert torch.allclose(mean1, mean2)
 
 

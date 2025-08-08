@@ -30,7 +30,7 @@ def check_crps(model, X_train, Y_train, grid_size=3000):
         .unsqueeze(-1)
         .to(X_train.device)
     )
-    dists = model.distributions(X_train)
+    dists = model.predict(X_train)
     cdfs = dists.cdf(grid)
     grid = grid.squeeze()
     crps_ = crps(Y_train, grid, cdfs)

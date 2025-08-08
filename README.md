@@ -267,16 +267,16 @@ Variance, skewness, and kurtosis can be derived using the density function.
 
 ``` python
 test_instance = X_test[:1]
-mean_pred = drn_model.distributions(test_instance).mean
-_10_quantile = drn_model.distributions(test_instance).quantiles(
+mean_pred = drn_model.predict(test_instance).mean
+_10_quantile = drn_model.predict(test_instance).quantiles(
       [10],
       l = torch.min(Y_train) * 3 if torch.min(Y_train) < 0 else 0.0,
       u = torch.max(Y_train) * 3)
-_90_quantile = drn_model.distributions(test_instance).quantiles(
+_90_quantile = drn_model.predict(test_instance).quantiles(
       [90],
       l = torch.min(Y_train) * 3 if torch.min(Y_train) < 0 else 0.0,
       u = torch.max(Y_train) * 3)
-_99_quantile = drn_model.distributions(test_instance).quantiles(
+_99_quantile = drn_model.predict(test_instance).quantiles(
       [99],
       l = torch.min(Y_train) * 3 if torch.min(Y_train) < 0 else 0.0,
       u = torch.max(Y_train) * 3)
@@ -298,9 +298,9 @@ print("Generating distributional forecasts")
 dists_train, dists_val, dists_test = {}, {}, {}
 for name, model in zip(names, dr_models):
     print(f"- {name}")
-    dists_train[name] = model.distributions(X_train)
-    dists_val[name] = model.distributions(X_val)
-    dists_test[name] = model.distributions(X_test)
+    dists_train[name] = model.predict(X_train)
+    dists_val[name] = model.predict(X_val)
+    dists_test[name] = model.predict(X_test)
 
 print("Calculating CDF over a grid")
 GRID_SIZE = 3000

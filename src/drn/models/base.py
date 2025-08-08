@@ -23,7 +23,7 @@ class BaseModel(L.LightningModule, abc.ABC):
     def loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor: ...
 
     @abc.abstractmethod
-    def distributions(
+    def predict(
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> Any: ...
 
@@ -160,7 +160,7 @@ class BaseModel(L.LightningModule, abc.ABC):
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
         x = self._to_tensor(x)
-        dists = self.distributions(x)
+        dists = self.predict(x)
 
         # Try to use PyTorch distribution's icdf method first
         try:
@@ -186,7 +186,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         then falls back to icdf-based approach.
         """
         x = self._to_tensor(x)
-        dists = self.distributions(x)
+        dists = self.predict(x)
 
         # Check if the distribution has its own quantiles method (e.g., Histogram, ExtendedHistogram)
         if hasattr(dists, "quantiles") and callable(getattr(dists, "quantiles")):

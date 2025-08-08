@@ -64,7 +64,7 @@ class Constant(BaseModel):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.mean_value.expand(x.shape[0])
 
-    def distributions(self, x: Any) -> Any:
+    def predict(self, x: Any) -> Any:
         batch = self.mean_value.new_zeros(x.shape[0]) + self.mean_value
         phi = self.dispersion
         if self.distribution == "gamma":
@@ -76,4 +76,4 @@ class Constant(BaseModel):
         return Normal(batch, phi)
 
     def loss(self, X: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return -self.distributions(X).log_prob(y).mean()
+        return -self.predict(X).log_prob(y).mean()

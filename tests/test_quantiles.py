@@ -181,7 +181,7 @@ class TestQuantilesBounds:
         X_test = np.zeros((1, 1))
 
         # Get distribution and use PyTorch's icdf directly
-        dist = model.distributions(X_test)
+        dist = model.predict(X_test)
         pytorch_quantile = dist.icdf(torch.tensor(0.5))
 
         # Get quantile using our method (which should try PyTorch first)
@@ -321,8 +321,8 @@ class TestBoundsIssue:
         )
 
         # For comparison, what does PyTorch give directly?
-        gamma_dist = gamma_model.distributions(X_test)
-        gauss_dist = gauss_model.distributions(X_test)
+        gamma_dist = gamma_model.predict(X_test)
+        gauss_dist = gauss_model.predict(X_test)
 
         try:
             print(f"Gamma PyTorch icdf: {gamma_dist.icdf(torch.tensor(0.5))}")

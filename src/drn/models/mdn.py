@@ -80,7 +80,7 @@ class MDN(BaseModel):
             sigmas = nn.Softplus()(self.pre_sigma(x))  # Ensure sigma is positive
             return [weights, mus, sigmas]
 
-    def distributions(
+    def predict(
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> MixtureSameFamily:
         """
@@ -115,7 +115,7 @@ class MDN(BaseModel):
         """
         if isinstance(x, np.ndarray):
             x = torch.Tensor(x)
-        distributions = self.distributions(x)
+        distributions = self.predict(x)
         return distributions.mean.detach().numpy()
 
 

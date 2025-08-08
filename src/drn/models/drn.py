@@ -116,7 +116,7 @@ class DRN(BaseModel):
             num_regions = len(self.cutpoints) - 1
 
         with torch.no_grad():
-            baseline_dists = self.glm.distributions(x)
+            baseline_dists = self.glm.predict(x)
 
             baseline_cdfs = baseline_dists.cdf(self.cutpoints.unsqueeze(-1)).T
             if self.debug:
@@ -148,7 +148,7 @@ class DRN(BaseModel):
 
         return baseline_dists, self.cutpoints, baseline_probs, drn_pmf
 
-    def distributions(
+    def predict(
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> ExtendedHistogram:
         x = self._to_tensor(x)

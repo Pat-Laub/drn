@@ -89,7 +89,7 @@ class DDR(BaseModel):
 
         return self.cutpoints, probs
 
-    def distributions(
+    def predict(
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> Histogram:
         x = self._to_tensor(x)
@@ -99,7 +99,7 @@ class DDR(BaseModel):
         return dists
 
     def loss(self, x, y):
-        dists = self.distributions(x)
+        dists = self.predict(x)
         if self.loss_metric == "jbce":
             return jbce_loss(dists, y)
         else:

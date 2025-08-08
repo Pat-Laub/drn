@@ -145,9 +145,7 @@ class GLM(BaseModel):
         glm.load_state_dict(self.state_dict())
         return glm
 
-    def distributions(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
-    ):
+    def predict(self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 

@@ -17,7 +17,7 @@ from drn import *
 def check_crps(model, X_train, Y_train, grid_size=3000):
     grid = torch.linspace(0, Y_train.max().item() * 1.1, grid_size).unsqueeze(-1)
     grid = grid.to(X_train.device)
-    dists = model.distributions(X_train)
+    dists = model.predict(X_train)
     cdfs = dists.cdf(grid)
     grid = grid.squeeze()
     crps_ = crps(Y_train, grid, cdfs)

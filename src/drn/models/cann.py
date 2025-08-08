@@ -97,7 +97,7 @@ class CANN(BaseModel):
         ), f"Expected output shape [n], got {out.shape} for input shape {x.shape}"
         return out
 
-    def distributions(
+    def predict(
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """

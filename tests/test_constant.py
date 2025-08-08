@@ -27,21 +27,21 @@ def test_distributions_initial():
     x = torch.zeros((4, 2))
     # Gamma
     c = Constant("gamma")
-    dist = c.distributions(x)
+    dist = c.predict(x)
     assert isinstance(dist, Gamma)
     # mean = alpha/beta = (1/phi)/(mean_value) = 1/1 = 1
     assert torch.allclose(dist.mean, torch.tensor([1.0] * 4))
 
     # IG
     c = Constant("inversegaussian")
-    dist = c.distributions(x)
+    dist = c.predict(x)
     assert isinstance(dist, InverseGaussian)
     # mean property for custom IG
     assert torch.allclose(torch.tensor(dist.mean), torch.tensor([1.0] * 4))
 
     # Gaussian
     c = Constant("gaussian")
-    dist = c.distributions(x)
+    dist = c.predict(x)
     assert isinstance(dist, Normal)
     assert torch.allclose(dist.mean, torch.tensor([0.0] * 4))
 
@@ -102,8 +102,8 @@ def test_equivalence_with_default_glm():
         # dispersion matches
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
         # distribution parameters match
-        d1 = const.distributions(x)
-        d2 = glm.distributions(x)
+        d1 = const.predict(x)
+        d2 = glm.predict(x)
         if dist == "gamma":
             assert torch.allclose(d1.concentration, d2.concentration)
             assert torch.allclose(d1.rate, d2.rate)
@@ -149,8 +149,8 @@ def test_equivalence_with_from_statsmodels_null_model():
         assert torch.allclose(pred_c, pred_g, atol=1e-6)
 
         # distribution means match
-        d_c = const.distributions(x)
-        d_g = glm_null.distributions(x)
+        d_c = const.predict(x)
+        d_g = glm_null.predict(x)
         mean_c = d_c.mean if hasattr(d_c, "mean") else torch.tensor(d_c.mean)
         mean_g = d_g.mean if hasattr(d_g, "mean") else torch.tensor(d_g.mean)
         assert torch.allclose(mean_c, mean_g, atol=1e-6)
@@ -311,7 +311,7 @@ def test_quantiles_consistency_with_distributions():
     q50 = const.quantiles(X_test, [50])[0, 0]  # First percentile, first sample
 
     # Get quantile directly from distribution
-    dist = const.distributions(torch.zeros(1, 1))
+    dist = const.predict(torch.zeros(1, 1))
     q50_direct = dist.icdf(torch.tensor(0.5))[0]
 
     # Should be very close
