@@ -76,7 +76,7 @@ def test_glm_from_statsmodels():
         _to_tensor(X_train), _to_tensor(y_train), distribution="gamma"
     )
     d1 = gamma_estimate_dispersion(
-        glm1.forward(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
+        glm1(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
     )
     assert np.isclose(d1, glm1.dispersion.item())
 
@@ -85,7 +85,7 @@ def test_glm_from_statsmodels():
         _to_tensor(X_train).device
     )
     d2 = gamma_estimate_dispersion(
-        glm2.forward(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
+        glm2(_to_tensor(X_train)), _to_tensor(y_train), X_train.shape[1]
     )
     assert np.isclose(d2, glm2.dispersion.item())
 
@@ -100,7 +100,7 @@ def test_glm_from_statsmodels():
         y_sr, sm.add_constant(X_df), family=Gamma(link=sm.families.links.Log())
     ).fit()
     sm_pred = sm_mod.predict(sm.add_constant(X_df))
-    our_pred = glm3.forward(_to_tensor(X_df)).cpu().detach().numpy()
+    our_pred = glm3(_to_tensor(X_df)).cpu().detach().numpy()
     assert np.allclose(sm_pred, our_pred)
 
 

@@ -45,9 +45,7 @@ def test_glm_from_statsmodels():
     # Construct GLM given training data in torch tensors
     glm = GLM.from_statsmodels(X_train, Y_train, distribution="gamma")
 
-    our_dispersion = gamma_estimate_dispersion(
-        glm.forward(X_train), Y_train, X_train.shape[1]
-    )
+    our_dispersion = gamma_estimate_dispersion(glm(X_train), Y_train, X_train.shape[1])
 
     assert np.isclose(our_dispersion, glm.dispersion.item())
 
@@ -60,9 +58,7 @@ def test_glm_from_statsmodels():
     glm = glm.to(
         X_train.device
     )  # since 'from_statsmodels' didn't know this information
-    our_dispersion = gamma_estimate_dispersion(
-        glm.forward(X_train), Y_train, X_train.shape[1]
-    )
+    our_dispersion = gamma_estimate_dispersion(glm(X_train), Y_train, X_train.shape[1])
 
     assert np.isclose(our_dispersion, glm.dispersion.item())
 
@@ -101,7 +97,7 @@ def test_glm_from_statsmodels():
     statsmodels_predictions = results.predict(sm.add_constant(x_train))
 
     X_train = torch.Tensor(x_train.values, device=X_train.device)
-    our_predictions = glm.forward(X_train).detach().cpu().numpy()
+    our_predictions = glm(X_train).detach().cpu().numpy()
 
     assert np.allclose(statsmodels_predictions, our_predictions)
 

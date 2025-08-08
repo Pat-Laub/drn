@@ -91,7 +91,7 @@ class MDN(BaseModel):
             the predicted mixture distributions.
         """
         x = self._to_tensor(x)
-        params = self.forward(x)
+        params = self(x)
         weights = params[0]
         mixture = Categorical(weights)
 
@@ -103,7 +103,7 @@ class MDN(BaseModel):
         return MixtureSameFamily(mixture, components)
 
     def loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return self.loss_fn(self.forward(x), y)
+        return self.loss_fn(self(x), y)
 
     def mean(self, x: Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         """

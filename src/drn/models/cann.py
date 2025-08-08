@@ -87,10 +87,10 @@ class CANN(BaseModel):
         """
         if self.distribution in ["gamma", "inversegaussian"]:
             out = torch.exp(
-                torch.log(self.baseline.forward(x)) + self.nn_output_layer(x).squeeze()
+                torch.log(self.baseline(x)) + self.nn_output_layer(x).squeeze()
             )
         else:
-            out = self.baseline.forward(x) + self.nn_output_layer(x).squeeze()
+            out = self.baseline(x) + self.nn_output_layer(x).squeeze()
 
         assert out.shape == torch.Size(
             [x.shape[0]]
@@ -108,16 +108,16 @@ class CANN(BaseModel):
 
         x = self._to_tensor(x)
         if self.distribution == "gamma":
-            alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
+            alphas, betas = gamma_convert_parameters(self(x), self.dispersion)
             dists = torch.distributions.Gamma(alphas, betas)
         else:
-            dists = torch.distributions.Normal(self.forward(x), self.dispersion)
+            dists = torch.distributions.Normal(self(x), self.dispersion)
 
         assert dists.batch_shape == torch.Size([x.shape[0]])
         return dists
 
     def loss(self, x, y):
-        return self.loss_fn(self.forward(x), y)
+        return self.loss_fn(self(x), y)
 
     def update_dispersion(
         self,
@@ -126,11 +126,11 @@ class CANN(BaseModel):
     ) -> None:
         X = self._to_tensor(X_train)
         y = self._to_tensor(y_train)
-        disp = estimate_dispersion(self.distribution, self.forward(X), y, X.shape[1])
+        disp = estimate_dispersion(self.distribution, self(X), y, X.shape[1])
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: np.ndarray) -> np.ndarray:
         """
         Calculate the predicted means for the given observations, specific to the model type.
         """
-        return self.forward(torch.Tensor(x)).detach().numpy().squeeze()
+        return self(torch.Tensor(x)).detach().numpy().squeeze()

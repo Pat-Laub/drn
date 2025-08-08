@@ -96,8 +96,8 @@ def test_equivalence_with_default_glm():
         # Dummy input batch of size 3
         x = torch.randn((3, 2))
         # forward matches
-        out_c = const.forward(x)
-        out_g = glm.forward(x)
+        out_c = const(x)
+        out_g = glm(x)
         assert torch.allclose(out_c, out_g)
         # dispersion matches
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
@@ -121,7 +121,7 @@ def test_equivalence_with_null_glm_constructor():
         const = Constant(dist)
         glm = GLM(distribution=dist, p=2)
         x = torch.randn((4, 2))
-        assert torch.allclose(const.forward(x), glm.forward(x))
+        assert torch.allclose(const(x), glm(x))
         assert const.dispersion.item() == pytest.approx(glm.dispersion.item())
 
 
@@ -144,8 +144,8 @@ def test_equivalence_with_from_statsmodels_null_model():
         glm_null.eval()
 
         # predictions should match
-        pred_c = const.forward(x)
-        pred_g = glm_null.forward(x)
+        pred_c = const(x)
+        pred_g = glm_null(x)
         assert torch.allclose(pred_c, pred_g, atol=1e-6)
 
         # distribution means match

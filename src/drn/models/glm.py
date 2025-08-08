@@ -153,17 +153,17 @@ class GLM(BaseModel):
 
         x = self._to_tensor(x)
         if self.distribution == "gamma":
-            alphas, betas = gamma_convert_parameters(self.forward(x), self.dispersion)
+            alphas, betas = gamma_convert_parameters(self(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)
         elif self.distribution == "inversegaussian":
-            return inverse_gaussian.InverseGaussian(self.forward(x), self.dispersion)
+            return inverse_gaussian.InverseGaussian(self(x), self.dispersion)
         elif self.distribution == "lognormal":
-            return torch.distributions.LogNormal(self.forward(x), self.dispersion)
+            return torch.distributions.LogNormal(self(x), self.dispersion)
         else:
-            return torch.distributions.Normal(self.forward(x), self.dispersion)
+            return torch.distributions.Normal(self(x), self.dispersion)
 
     def loss(self, X: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
-        return self.loss_fn(self.forward(X), y)
+        return self.loss_fn(self(X), y)
 
     def update_dispersion(
         self,
@@ -172,14 +172,14 @@ class GLM(BaseModel):
     ) -> None:
         X = self._to_tensor(X_train)
         y = self._to_tensor(y_train)
-        disp = estimate_dispersion(self.distribution, self.forward(X), y, self.p)
+        disp = estimate_dispersion(self.distribution, self(X), y, self.p)
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 
     def mean(self, x: torch.Tensor) -> torch.Tensor:
         """
         Calculate the predicted means for the given observations.
         """
-        return self.forward(x)
+        return self(x)
 
 
 def gamma_deviance_loss(y_pred: torch.Tensor, y_true: torch.Tensor) -> torch.Tensor:

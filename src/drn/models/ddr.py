@@ -93,7 +93,7 @@ class DDR(BaseModel):
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> Histogram:
         x = self._to_tensor(x)
-        cutpoints, prob_masses = self.forward(x)
+        cutpoints, prob_masses = self(x)
         dists = Histogram(cutpoints, prob_masses)
         assert dists.batch_shape == torch.Size([x.shape[0]])
         return dists

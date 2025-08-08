@@ -152,13 +152,13 @@ class DRN(BaseModel):
         self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> ExtendedHistogram:
         x = self._to_tensor(x)
-        baseline_dists, cutpoints, baseline_probs, drn_pmf = self.forward(x)
+        baseline_dists, cutpoints, baseline_probs, drn_pmf = self(x)
         return ExtendedHistogram(baseline_dists, cutpoints, drn_pmf, baseline_probs)
 
     def loss(self, x, y):
         if self.training:
             return drn_loss(
-                self.forward(x),
+                self(x),
                 y,
                 kind=self.loss_metric,
                 kl_alpha=self.kl_alpha,
@@ -169,7 +169,7 @@ class DRN(BaseModel):
             )
         else:
             # Disable regularization during evaluation phase (e.g. validation set loss)
-            return drn_loss(self.forward(x), y, kind=self.loss_metric)
+            return drn_loss(self(x), y, kind=self.loss_metric)
 
 
 def drn_loss(

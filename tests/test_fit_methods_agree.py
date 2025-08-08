@@ -103,7 +103,7 @@ def test_cann_train_vs_fit_equivalence():
     x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
 
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
-    _ = cann1.forward(x_obs)  # trigger LazyLinear init
+    _ = cann1(x_obs)  # trigger LazyLinear init
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
@@ -113,7 +113,7 @@ def test_cann_train_vs_fit_equivalence():
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
 
-    _ = cann2.forward(x_obs)  # trigger LazyLinear init
+    _ = cann2(x_obs)  # trigger LazyLinear init
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     # compare every learned parameter
@@ -132,13 +132,13 @@ def test_mdn_train_vs_fit_equivalence():
     # 1) train(...) version
     torch.manual_seed(seed)
     mdn1 = MDN(num_components=4, distribution="gamma")
-    _ = mdn1.forward(x_obs)  # trigger LazyLinear init
+    _ = mdn1(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
     mdn2 = MDN(num_components=4, distribution="gamma")
-    _ = mdn2.forward(x_obs)  # trigger LazyLinear init
+    _ = mdn2(x_obs)  # trigger LazyLinear init
     mdn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     _compare_params(mdn1, mdn2)
@@ -192,7 +192,7 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
     x_obs = torch.tensor(X_train_np[:1], dtype=torch.float32)
 
     cann1 = CANN(glm1, num_hidden_layers=1, hidden_size=16)
-    _ = cann1.forward(x_obs)  # trigger LazyLinear init
+    _ = cann1(x_obs)  # trigger LazyLinear init
     train(cann1, train_ds, val_ds, epochs=1)
 
     # 2) .fit(...) version
@@ -201,7 +201,7 @@ def test_cann_train_vs_fit_equivalence_ignoring_dispersion():
     glm2.fit(X_train_np, y_train_np)
 
     cann2 = CANN(glm2, num_hidden_layers=1, hidden_size=16)
-    _ = cann2.forward(x_obs)  # trigger LazyLinear init
+    _ = cann2(x_obs)  # trigger LazyLinear init
     cann2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=1, **FIT_KW)
 
     # Add a fake dispersion parameter to cann1
@@ -229,13 +229,13 @@ def test_mdn_train_vs_fit_early_stopping_equivalence():
     # 1) train(...) version with patience=2
     torch.manual_seed(seed)
     mdn1 = MDN(num_components=4, distribution="gamma")
-    _ = mdn1.forward(x_obs)  # trigger LazyLinear init
+    _ = mdn1(x_obs)  # trigger LazyLinear init
     train(mdn1, train_ds, val_ds, epochs=10, patience=2)
 
     # 2) .fit(...) version with the same epochs & patience
     torch.manual_seed(seed)
     mdn2 = MDN(num_components=4, distribution="gamma")
-    _ = mdn2.forward(x_obs)  # trigger LazyLinear init
+    _ = mdn2(x_obs)  # trigger LazyLinear init
     mdn2.fit(
         X_train_np, y_train_np, X_val_np, y_val_np, epochs=10, patience=2, **FIT_KW
     )
@@ -261,13 +261,13 @@ def test_ddr_train_vs_fit_equivalence():
     # 1) train(...) version
     torch.manual_seed(seed)
     ddr1 = DDR(cutpoints=cps, hidden_size=32)
-    _ = ddr1.forward(x_obs)  # trigger LazyLinear init
+    _ = ddr1(x_obs)  # trigger LazyLinear init
     train(ddr1, train_ds, val_ds, epochs=2)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
     ddr2 = DDR(cutpoints=cps, hidden_size=32)
-    _ = ddr2.forward(x_obs)  # trigger LazyLinear init
+    _ = ddr2(x_obs)  # trigger LazyLinear init
     ddr2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
 
     # compare parameters
@@ -303,13 +303,13 @@ def test_drn_train_vs_fit_equivalence():
     # 1) train(...) version
     torch.manual_seed(seed)
     drn1 = DRN(glm1, cutpoints=drn_cps, hidden_size=32)
-    _ = drn1.forward(x_obs)  # trigger LazyLinear init
+    _ = drn1(x_obs)  # trigger LazyLinear init
     train(drn1, train_ds, val_ds, epochs=2)
 
     # 2) .fit(...) version
     torch.manual_seed(seed)
     drn2 = DRN(glm2, cutpoints=drn_cps, hidden_size=32)
-    _ = drn2.forward(x_obs)  # trigger LazyLinear init
+    _ = drn2(x_obs)  # trigger LazyLinear init
     drn2.fit(X_train_np, y_train_np, X_val_np, y_val_np, epochs=2, **FIT_KW)
 
     # compare parameters (ignore dispersion parameter)
