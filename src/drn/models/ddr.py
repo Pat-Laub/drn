@@ -89,10 +89,7 @@ class DDR(BaseModel):
 
         return self.cutpoints, probs
 
-    def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
-    ) -> Histogram:
-        x = self._to_tensor(x)
+    def _predict(self, x: torch.Tensor) -> Histogram:
         cutpoints, prob_masses = self(x)
         dists = Histogram(cutpoints, prob_masses)
         assert dists.batch_shape == torch.Size([x.shape[0]])

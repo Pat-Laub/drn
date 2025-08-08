@@ -52,7 +52,7 @@ def test_glm():
     torch.manual_seed(1)
     glm_np = GLM(distribution="gamma")
     glm_np.fit(X_train, y_train, X_val, y_val, epochs=2)
-    glm_np.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
+    glm_np.update_dispersion(X_train, y_train)
     check_crps(glm_np, X_train, y_train)
 
     # --- 2) PANDAS inputs (sanity check) ---
@@ -64,7 +64,7 @@ def test_glm():
     glm_pd = GLM(distribution="gamma")
     # one short epoch just to confirm no errors
     glm_pd.fit(Xtr_df, ytr_sr, Xvl_df, yvl_sr, epochs=1)
-    glm_pd.update_dispersion(_to_tensor(Xtr_df), _to_tensor(ytr_sr))
+    glm_pd.update_dispersion(Xtr_df, ytr_sr)
     check_crps(glm_pd, Xtr_df, ytr_sr)
 
 
@@ -114,7 +114,7 @@ def test_cann():
     cann = CANN(base, num_hidden_layers=2, hidden_size=100)
     cann.fit(X_train, y_train, X_val, y_val, epochs=2)
 
-    cann.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
+    cann.update_dispersion(X_train, y_train)
     check_crps(cann, X_train, y_train)
 
 
@@ -193,7 +193,6 @@ def test_drn():
     torch.manual_seed(5)
     base = GLM(distribution="gamma")
     base.fit(X_train, y_train, X_val, y_val, epochs=2)
-    base.update_dispersion(_to_tensor(X_train), _to_tensor(y_train))
 
     for loss_fn in ("jbce", "nll"):
         drn = DRN(

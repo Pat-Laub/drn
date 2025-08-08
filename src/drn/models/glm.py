@@ -145,11 +145,10 @@ class GLM(BaseModel):
         glm.load_state_dict(self.state_dict())
         return glm
 
-    def predict(self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]):
+    def _predict(self, x: torch.Tensor):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
-        x = self._to_tensor(x)
         if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self(x), self.dispersion)
             return torch.distributions.Gamma(alphas, betas)
@@ -168,8 +167,8 @@ class GLM(BaseModel):
         X_train: Union[np.ndarray, pd.DataFrame, torch.Tensor],
         y_train: Union[np.ndarray, pd.Series, torch.Tensor],
     ) -> None:
-        X = self._to_tensor(X_train)
-        y = self._to_tensor(y_train)
+        X = self.preprocess(X_train)
+        y = self.preprocess(y_train)
         disp = estimate_dispersion(self.distribution, self(X), y, self.p)
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 

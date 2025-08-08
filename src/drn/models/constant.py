@@ -65,6 +65,12 @@ class Constant(BaseModel):
         return self.mean_value.expand(x.shape[0])
 
     def predict(self, x: Any) -> Any:
+        """
+        Create a (constant) distributional forecast for the given inputs.
+        """
+        return self._predict(x)
+
+    def _predict(self, x: Any) -> Union[Gamma, Normal, InverseGaussian]:
         batch = self.mean_value.new_zeros(x.shape[0]) + self.mean_value
         phi = self.dispersion
         if self.distribution == "gamma":

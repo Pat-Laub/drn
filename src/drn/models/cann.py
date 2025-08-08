@@ -97,8 +97,8 @@ class CANN(BaseModel):
         ), f"Expected output shape [n], got {out.shape} for input shape {x.shape}"
         return out
 
-    def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    def _predict(
+        self, x: torch.Tensor
     ) -> Union[torch.distributions.Gamma, torch.distributions.Normal]:
         """
         Create distributional forecasts for the given inputs, specific to the model type.
@@ -106,7 +106,6 @@ class CANN(BaseModel):
         if torch.isnan(self.dispersion):
             raise RuntimeError("Dispersion parameter has not been estimated yet.")
 
-        x = self._to_tensor(x)
         if self.distribution == "gamma":
             alphas, betas = gamma_convert_parameters(self(x), self.dispersion)
             dists = torch.distributions.Gamma(alphas, betas)
@@ -124,8 +123,8 @@ class CANN(BaseModel):
         X_train: Union[np.ndarray, pd.DataFrame, torch.Tensor],
         y_train: Union[np.ndarray, pd.Series, torch.Tensor],
     ) -> None:
-        X = self._to_tensor(X_train)
-        y = self._to_tensor(y_train)
+        X = self.preprocess(X_train)
+        y = self.preprocess(y_train)
         disp = estimate_dispersion(self.distribution, self(X), y, X.shape[1])
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 

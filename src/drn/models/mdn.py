@@ -80,9 +80,7 @@ class MDN(BaseModel):
             sigmas = nn.Softplus()(self.pre_sigma(x))  # Ensure sigma is positive
             return [weights, mus, sigmas]
 
-    def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
-    ) -> MixtureSameFamily:
+    def _predict(self, x: torch.Tensor) -> MixtureSameFamily:
         """
         Create distributional forecasts for the given inputs.
         Args:
@@ -90,7 +88,6 @@ class MDN(BaseModel):
         Returns:
             the predicted mixture distributions.
         """
-        x = self._to_tensor(x)
         params = self(x)
         weights = params[0]
         mixture = Categorical(weights)

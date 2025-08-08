@@ -22,10 +22,15 @@ class BaseModel(L.LightningModule, abc.ABC):
     @abc.abstractmethod
     def loss(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor: ...
 
+    def predict(self, x_raw: Union[np.ndarray, pd.DataFrame, pd.Series]) -> Any:
+        """Creates a distributional prediction for the input data.
+        Here, `x_raw` is raw data, and this method will apply any model-specific preprocessing.
+        """
+        x = self.preprocess(x_raw)
+        return self._predict(x)
+
     @abc.abstractmethod
-    def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
-    ) -> Any: ...
+    def _predict(self, x: torch.Tensor) -> Any: ...
 
     def training_step(self, batch: Any, idx: int) -> torch.Tensor:
         x, y = batch
@@ -67,7 +72,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
         # Build training DataLoader
         train_tensor = TensorDataset(
-            self._to_tensor(X_train), self._to_tensor(y_train).squeeze()
+            self.preprocess(X_train), self.preprocess(y_train).squeeze()
         )
         train_loader = DataLoader(train_tensor, batch_size=batch_size, shuffle=True)
 
@@ -81,7 +86,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
         # Build validation DataLoader
         val_tensor = TensorDataset(
-            self._to_tensor(X_val), self._to_tensor(y_val).squeeze()
+            self.preprocess(X_val), self.preprocess(y_val).squeeze()
         )
         val_loader = DataLoader(val_tensor, batch_size=len(val_tensor), shuffle=False)
 
@@ -122,17 +127,23 @@ class BaseModel(L.LightningModule, abc.ABC):
         self.eval()
         return self
 
-    def _to_tensor(
-        self, arr: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+    def preprocess(
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
     ) -> torch.Tensor:
         """
-        Convert input data to a PyTorch tensor.
+        Convert input data to a PyTorch tensor. Apply any neural network preprocessing (if applicable).
         """
-        if isinstance(arr, torch.Tensor):
-            return arr.to(device=self.device)
-        elif isinstance(arr, pd.DataFrame) or isinstance(arr, pd.Series):
-            arr = arr.values
-        return torch.Tensor(arr).to(self.device)
+        if isinstance(x, torch.Tensor):
+            return x.to(self.device)
+
+        # If the model has a .ct attribute (for column transformer), use it
+        if hasattr(self, "ct") and self.ct is not None:
+            x = self.ct.transform(x)
+
+        if isinstance(x, pd.DataFrame) or isinstance(x, pd.Series):
+            x = x.values
+
+        return torch.Tensor(x).to(self.device)
 
     def icdf(
         self,
@@ -159,7 +170,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         Returns:
             A tensor of shape (1, batch_shape) containing the inverse CDF values.
         """
-        x = self._to_tensor(x)
+        x = self.preprocess(x)
         dists = self.predict(x)
 
         # Try to use PyTorch distribution's icdf method first
@@ -172,7 +183,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
     def quantiles(
         self,
-        x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor],
+        x: Union[np.ndarray, pd.DataFrame, pd.Series],
         percentiles: list,
         l=None,
         u=None,
@@ -185,7 +196,6 @@ class BaseModel(L.LightningModule, abc.ABC):
         This unified implementation first checks if the distribution has its own quantiles method,
         then falls back to icdf-based approach.
         """
-        x = self._to_tensor(x)
         dists = self.predict(x)
 
         # Check if the distribution has its own quantiles method (e.g., Histogram, ExtendedHistogram)

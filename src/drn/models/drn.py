@@ -15,6 +15,7 @@ class DRN(BaseModel):
         self,
         baseline,
         cutpoints: Optional[list[float]] = None,
+        ct=None,
         num_hidden_layers=2,
         hidden_size=75,
         dropout_rate=0.2,
@@ -40,6 +41,7 @@ class DRN(BaseModel):
         self.save_hyperparameters()
         super(DRN, self).__init__()
         self.glm = baseline.clone()
+        self.ct = ct
 
         for param in self.glm.parameters():
             param.requires_grad = False
@@ -148,10 +150,7 @@ class DRN(BaseModel):
 
         return baseline_dists, self.cutpoints, baseline_probs, drn_pmf
 
-    def predict(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
-    ) -> ExtendedHistogram:
-        x = self._to_tensor(x)
+    def _predict(self, x: torch.Tensor) -> ExtendedHistogram:
         baseline_dists, cutpoints, baseline_probs, drn_pmf = self(x)
         return ExtendedHistogram(baseline_dists, cutpoints, drn_pmf, baseline_probs)
 
