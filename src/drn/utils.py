@@ -279,7 +279,7 @@ def _to_numpy(data):
 
 
 def binary_search_icdf(
-    distribution, p: float, l=None, u=None, max_iter=1000, tolerance=1e-7
+    distribution: torch.distributions.Distribution, p: float, l=None, u=None, max_iter=1000, tolerance=1e-7
 ) -> torch.Tensor:
     """
     Generic binary search implementation for inverse CDF (quantiles).

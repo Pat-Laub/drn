@@ -124,7 +124,7 @@ class CANN(BaseModel):
         y_train: Union[np.ndarray, pd.Series, torch.Tensor],
     ) -> None:
         X = self.preprocess(X_train)
-        y = self.preprocess(y_train)
+        y = self.preprocess(y_train, targets=True)
         disp = estimate_dispersion(self.distribution, self(X), y, X.shape[1])
         self.dispersion = nn.Parameter(torch.Tensor([disp]), requires_grad=False)
 

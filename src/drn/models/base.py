@@ -72,7 +72,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
         # Build training DataLoader
         train_tensor = TensorDataset(
-            self.preprocess(X_train), self.preprocess(y_train).squeeze()
+            self.preprocess(X_train), self.preprocess(y_train, targets=True).squeeze()
         )
         train_loader = DataLoader(train_tensor, batch_size=batch_size, shuffle=True)
 
@@ -86,7 +86,7 @@ class BaseModel(L.LightningModule, abc.ABC):
 
         # Build validation DataLoader
         val_tensor = TensorDataset(
-            self.preprocess(X_val), self.preprocess(y_val).squeeze()
+            self.preprocess(X_val), self.preprocess(y_val, targets=True).squeeze()
         )
         val_loader = DataLoader(val_tensor, batch_size=len(val_tensor), shuffle=False)
 
@@ -128,7 +128,7 @@ class BaseModel(L.LightningModule, abc.ABC):
         return self
 
     def preprocess(
-        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor]
+        self, x: Union[np.ndarray, pd.DataFrame, pd.Series, torch.Tensor], targets=False
     ) -> torch.Tensor:
         """
         Convert input data to a PyTorch tensor. Apply any neural network preprocessing (if applicable).
@@ -136,8 +136,8 @@ class BaseModel(L.LightningModule, abc.ABC):
         if isinstance(x, torch.Tensor):
             return x.to(self.device)
 
-        # If the model has a .ct attribute (for column transformer), use it
-        if hasattr(self, "ct") and self.ct is not None:
+        # If the model has a .ct attribute (for column transformer), only apply to covariates
+        if hasattr(self, "ct") and self.ct is not None and not targets:
             x = self.ct.transform(x)
 
         if isinstance(x, pd.DataFrame) or isinstance(x, pd.Series):
