@@ -1,0 +1,107 @@
+site_name: DRN - Distributional Refinement Networks
+site_description: A PyTorch-based library for Distributional Refinement Networks and distributional regression modeling
+site_author: Eric Dong, Patrick Laub
+site_url: https://drn-docs.readthedocs.io
+
+repo_name: EricTianDong/drn
+repo_url: https://github.com/EricTianDong/drn
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.annotate
+    - content.code.copy
+    - content.tabs.link
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.arithmatex:
+      generic: true
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - https://unpkg.com/mermaid@10.6.1/dist/mermaid.min.js
+
+nav:
+  - Home: index.md
+  - Getting Started: 
+    - Overview: getting-started/quickstart.md
+    - Installation: getting-started/installation.md
+    - Quick Start: getting-started/quickstart.md
+    - Basic Concepts: getting-started/concepts.md
+    - Advanced Usage: getting-started/advanced-usage.md
+  # - User Guide: user-guide/index.md
+  - API Reference:
+    - Overview: api/index.md
+    - Models:
+      - Overview: api/models/index.md
+      - BaseModel: api/models/base.md
+      - GLM: api/models/glm.md
+      - DRN: api/models/drn.md
+      - Other Models: api/models/others.md
+    - Distributions: api/distributions.md
+    - Training: api/training.md
+    - Metrics: api/metrics.md
+    - Interpretability: api/interpretability.md
+    - Utilities: api/utils.md
+  # - Examples: examples/index.md
+  # - Development: development/index.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/EricTianDong/drn
+    - icon: fontawesome/solid/paper-plane
+      link: mailto:tiandong1999@gmail.com
+
+copyright: Copyright &copy; 2024 Eric Dong, Patrick Laub
