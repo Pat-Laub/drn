@@ -11,5 +11,4 @@ jobs:
         with:
           python-version: 3.x
       - run: pip install mkdocs-material mkdocstrings[python] pymdown-extensions
-      - run: pip install -e .  # Install the drn package for API docs generation
       - run: mkdocs gh-deploy --force
