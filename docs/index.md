@@ -6,7 +6,7 @@
 
 A PyTorch-based library for **Distributional Refinement Networks** and distributional regression modeling, combining interpretable baseline models with flexible neural networks for advanced distributional forecasting in actuarial and statistical contexts.
 
-## 🚀 Quick Start
+## Quick Start
 
 ```python
 from drn import GLM, DRN
@@ -29,35 +29,17 @@ mean_pred = predictions.mean
 quantiles = predictions.quantiles([10, 50, 90])
 ```
 
-## 🎯 Key Features
+## Key Features
 
-### **Comprehensive Distributional Regression Models**
-- **Distributional Refinement Network (DRN)**: The main model combining baseline + neural refinement
-- **Combined Actuarial Neural Network (CANN)**: Flexible actuarial modeling
-- **Mixture Density Network (MDN)**: Multi-modal distribution modeling
-- **Deep Distribution Regression (DDR)**: Neural distributional regression
-- **Generalized Linear Models (GLM)**: Interpretable baseline models
+**Comprehensive Model Suite**: The package includes Distributional Refinement Networks (DRN) as the main model, alongside Combined Actuarial Neural Networks (CANN), Mixture Density Networks (MDN), Deep Distribution Regression (DDR), and interpretable Generalized Linear Models (GLM).
 
-### **Exceptional Distributional Flexibility**
-- Model entire distributions for forecasting
-- User-controlled refinement range across all quantiles
-- Tailored regularization with KL divergence, roughness penalty, and mean penalty
-- Support for bounded, unbounded, discrete, continuous, or mixed response variables
+**Distributional Flexibility**: Rather than predicting single point estimates, these models forecast entire distributions with user-controlled refinement ranges. The framework supports bounded, unbounded, discrete, continuous, or mixed response variables through tailored regularization including KL divergence, roughness penalties, and mean constraints.
 
-### **Full Distributional Forecasting**
-- Complete distributional information: density, CDF, mean, and quantiles
-- Comprehensive evaluation metrics: RMSE, Quantile Loss, CRPS, NLL
-- Performance assessment across different aspects of distributional forecasting
+**Complete Evaluation Framework**: Models provide full distributional information including density functions, CDFs, means, and quantiles. Evaluation uses both traditional metrics (RMSE) and distributional measures (CRPS, Quantile Loss, NLL).
 
-### **Reasonable Distributional Interpretability**
-- Integrated Kernel SHAP analysis for distributional properties
-- Decomposition of baseline model and DRN contributions
-- Customized post-hoc interpretability for density and CDF
-- Understanding of model adjustments beyond the mean
+**Interpretability**: Integrated Kernel SHAP analysis decomposes baseline and neural contributions, providing understanding of model adjustments beyond simple mean predictions.
 
-## 🏗️ Architecture Overview
-
-The DRN package is built around several core components:
+## Architecture Overview
 
 ```mermaid
 graph TD
@@ -73,48 +55,27 @@ graph TD
     F --> J[SHAP Analysis]
 ```
 
-### Models (`src/drn/models/`)
-- **BaseModel**: Abstract foundation for all distributional regression models
-- **DRN**: Main distributional refinement network
-- **GLM**: Generalized linear models with Gaussian and Gamma distributions
-- **CANN, MDN, DDR**: Advanced neural distributional models
+The package centers around several model classes inheriting from BaseModel, including the main DRN implementation, GLM baselines with Gaussian and Gamma distributions, and advanced neural models (CANN, MDN, DDR). Supporting utilities provide PyTorch-based training with early stopping, comprehensive evaluation metrics, SHAP-based interpretability, and data preprocessing.
 
-### Core Utilities
-- **Training Framework**: PyTorch-based with early stopping and validation
-- **Metrics**: Comprehensive evaluation tools (CRPS, RMSE, quantile loss, NLL)
-- **Interpretability**: Kernel SHAP integration for distributional explanations
-- **Preprocessing**: Data splitting, scaling, and categorical encoding
+## The DRN Approach
 
-## 📖 The DRN Approach
+Distributional Refinement Networks address three key challenges in actuarial modeling: enabling flexible covariate impact across different aspects of the conditional distribution, integrating machine learning advances while maintaining interpretability, and preserving model transparency for trusted decision-making.
 
-Distributional Refinement Networks address three key challenges in actuarial modeling:
+The approach starts with an interpretable baseline model (typically a GLM), then applies neural network refinements to the entire distribution. Regularization balances flexibility with interpretability, while SHAP analysis provides comprehensive distributional explanations.
 
-1. **Flexible Covariate Impact**: Allow features to influence different aspects of the conditional distribution
-2. **ML Integration**: Combine machine learning advances while maintaining interpretability
-3. **Interpretable Predictions**: Preserve model transparency for trusted decision-making
-
-The DRN achieves this by:
-- Starting with an interpretable baseline model (typically a GLM)
-- Applying neural network refinements to the entire distribution
-- Balancing flexibility with interpretability through regularization
-- Providing comprehensive distributional explanations via SHAP
-
-## 🔗 Related Work
+## Related Work
 
 This package accompanies the [DRN paper](https://arxiv.org/abs/2406.00998) on Distributional Refinement Networks. For reproducible research and additional experiments, visit our [research repository](https://github.com/agi-lab/DRN).
 
-## 📚 Documentation Structure
+## Documentation Structure
 
-- **[Getting Started](getting-started/installation.md)**: Installation and basic setup
-- **[User Guide](user-guide/index.md)**: In-depth usage patterns
-- **[API Reference](api/index.md)**: Complete technical documentation
-- **[Examples](examples/index.md)**: Real-world applications and comparisons
+The documentation covers installation and basic setup in [Getting Started](getting-started/installation.md), detailed usage patterns in the [User Guide](user-guide/index.md), complete technical specifications in the [API Reference](api/index.md), and practical applications in [Examples](examples/index.md).
 
-## 🤝 Contributing
+## Contributing
 
-We welcome contributions! Please see our [Development Guide](development/index.md) for details on how to get started.
+Contributions are welcome. Please see our [Development Guide](development/index.md) for details on getting started.
 
-## 📄 Citation
+## Citation
 
 If you use DRN in your research, please cite:
 
@@ -129,6 +90,6 @@ If you use DRN in your research, please cite:
 }
 ```
 
-## 📞 Contact
+## Contact
 
-For questions or support, please contact [tiandong1999@gmail.com](mailto:tiandong1999@gmail.com).
+For questions or support, contact [tiandong1999@gmail.com](mailto:tiandong1999@gmail.com).

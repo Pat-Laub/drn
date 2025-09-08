@@ -75,9 +75,8 @@ extra_javascript:
 nav:
   - Home: index.md
   - Getting Started: 
-    - Overview: getting-started/quickstart.md
-    - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
+    # - Installation: getting-started/installation.md
     - Basic Concepts: getting-started/concepts.md
     - Advanced Usage: getting-started/advanced-usage.md
   # - User Guide: user-guide/index.md

@@ -1,6 +1,16 @@
 # Quick Start Guide
 
-This guide shows how to use DRN with pandas and numpy - the recommended approach for most users. The library handles all tensor conversions internally, so you can work with familiar data structures.
+This guide shows how to use DRN with pandas and numpy. The library handles all tensor conversions internally, so you can work with familiar data structures.
+
+## Installation
+
+Install DRN using pip:
+
+```bash
+pip install drn
+```
+
+DRN requires Python 3.8+ and will automatically install PyTorch, pandas, numpy, scikit-learn, and other dependencies.
 
 ## 1. Basic Example
 
@@ -165,38 +175,3 @@ glm_numpy = GLM('gamma')
 glm_numpy.fit(X_numpy, y_numpy)
 ```
 
-## Key Advantages
-
-**Simple Data Handling**
-
-- Work with familiar pandas DataFrames and Series
-- No manual tensor conversion required
-- Automatic handling of data types
-
-**Flexible Model Training**
-
-- `.fit()` method works like scikit-learn
-- Automatic validation and early stopping available
-- No need to create PyTorch datasets manually
-
-**Rich Predictions**
-
-- Full distributional information, not just point predictions
-- Easy access to quantiles, means, and risk measures
-- Compatible with standard evaluation metrics
-
-## Next Steps
-
-Now that you've seen the basic workflow:
-
-- **[Advanced Usage](advanced-usage.md)** - Manual tensor handling and custom training loops
-- **[Basic Concepts](concepts.md)** - Understand the theory behind DRN
-- **[API Reference](../api/index.md)** - Complete function documentation
-
-## Key Takeaways
-
-1. **Pandas First**: DRN is designed to work seamlessly with pandas/numpy
-2. **Two-Stage Process**: Train baseline GLM first, then DRN refinement
-3. **Automatic Handling**: Data conversion and preprocessing handled internally
-4. **Distributional Focus**: Get full distributions, not just point predictions
-5. **Flexible Evaluation**: Use distributional metrics like CRPS alongside RMSE

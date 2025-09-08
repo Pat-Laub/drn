@@ -52,23 +52,14 @@ graph TB
 
 ## Key Parameters
 
-### 🏗️ Model Architecture
-- **`baseline`** - The baseline model (typically GLM) providing interpretable foundation
-- **`cutpoints`** - Discretization points defining refinement regions  
-- **`hidden_size`** - Neurons per hidden layer (default: 75)
-- **`num_hidden_layers`** - Number of hidden layers (default: 2)
-- **`dropout_rate`** - Dropout probability for regularization (default: 0.2)
+### Model Architecture
+The core model structure is controlled by the `baseline` model (typically a GLM), `cutpoints` for discretization, and neural network dimensions via `hidden_size` (default: 75) and `num_hidden_layers` (default: 2). Dropout regularization is applied at rate `dropout_rate` (default: 0.2).
 
-### ⚙️ Training Control
-- **`baseline_start`** - Initialize neural weights to zero (start from baseline)
-- **`learning_rate`** - Adam optimizer learning rate (default: 1e-3)
-- **`loss_metric`** - Loss function type ("jbce" or "nll")
+### Training Control  
+Set `baseline_start=True` to initialize neural weights at zero, effectively starting from the baseline model. The `learning_rate` defaults to 1e-3 for the Adam optimizer, and `loss_metric` can be either "jbce" or "nll".
 
-### 🎛️ Regularization Parameters
-- **`kl_alpha`** - KL divergence penalty weight (default: 0.0)
-- **`mean_alpha`** - Mean deviation penalty weight (default: 0.0)
-- **`dv_alpha`** - Density variation (roughness) penalty weight (default: 0.0)
-- **`kl_direction`** - KL divergence direction ("forwards" or "backwards")
+### Regularization Parameters
+Three main penalty terms control model behavior: `kl_alpha` penalizes deviation from the baseline distribution, `mean_alpha` constrains mean predictions, and `dv_alpha` enforces density smoothness. The `kl_direction` parameter controls whether KL divergence is computed forwards or backwards.
 
 ---
 
@@ -133,7 +124,7 @@ train(
 
 The heart of DRN's flexibility lies in its cutpoints system, which discretizes the response space into refinement regions.
 
-### 🎯 Cutpoint Generation
+### Cutpoint Generation
 
 ::: drn.models.drn_cutpoints
     options:
@@ -212,257 +203,65 @@ cutpoints = drn_cutpoints(
 
 ---
 
-## Regularization Deep Dive
+## Regularization
 
-DRN uses sophisticated regularization to balance baseline adherence with neural flexibility.
+DRN uses three penalty terms to balance baseline adherence with neural flexibility.
 
-### 🎯 KL Divergence Control (`kl_alpha`)
+### KL Divergence Control (`kl_alpha`)
 
-Controls deviation from baseline distribution:
+This parameter controls how much the refined distribution can deviate from the baseline. Values around 1e-5 maintain close adherence to the baseline, while 1e-4 provides moderate refinement, and 1e-3 allows aggressive deviations. The `kl_direction` parameter determines whether the penalty is computed as KL(baseline || drn) for 'forwards' or KL(drn || baseline) for 'backwards'.
 
-```python
-# Conservative refinement (stay close to baseline)
-kl_alpha = 1e-5
-# Effect: Small deviations, preserves baseline structure
+### Roughness Penalty (`dv_alpha`)
 
-# Moderate refinement  
-kl_alpha = 1e-4
-# Effect: Balanced refinement, good starting point
+Higher values (1e-2) enforce very smooth densities, while lower values (1e-4) permit complex density shapes. The default 1e-3 provides a reasonable balance between flexibility and smoothness.
 
-# Aggressive refinement
-kl_alpha = 1e-3
-# Effect: Large deviations allowed, more neural influence
-```
+### Mean Penalty (`mean_alpha`)
 
-**Direction Control:**
-- `kl_direction='forwards'`: `KL(P_baseline || P_drn)` - Penalize when DRN differs from baseline
-- `kl_direction='backwards'`: `KL(P_drn || P_baseline)` - Penalize when baseline differs from DRN
-
-### 🎯 Roughness Penalty (`dv_alpha`)
-
-Ensures smooth density functions:
-
-```python
-# High smoothness (conservative shapes)
-dv_alpha = 1e-2
-# Effect: Very smooth densities, fewer local maxima
-
-# Moderate smoothness
-dv_alpha = 1e-3  
-# Effect: Balanced flexibility and smoothness
-
-# High flexibility (complex shapes allowed)
-dv_alpha = 1e-4
-# Effect: Complex density shapes possible
-```
-
-### 🎯 Mean Penalty (`mean_alpha`)
-
-Controls predicted mean deviation:
-
-```python
-# Force mean close to baseline
-mean_alpha = 1e-3
-# Effect: DRN mean stays near baseline mean
-
-# Moderate mean constraint
-mean_alpha = 1e-5
-# Effect: Some mean deviation allowed
-
-# Free mean adjustment
-mean_alpha = 0.0
-# Effect: Mean can deviate freely from baseline
-```
+This constrains how much the predicted mean can deviate from the baseline mean. Set to 1e-3 to force close adherence, 1e-5 for moderate constraint, or 0.0 to allow free mean adjustment.
 
 ---
 
-## Complete Training Example
-
-### Advanced Insurance Claims Model
+## Training Example
 
 ```python
-import pandas as pd
-import numpy as np
-import torch
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, LabelEncoder
-
 from drn import GLM, DRN, train
 from drn.models import drn_cutpoints, drn_loss
-from drn.metrics import crps, rmse, quantile_losses
 from drn.utils import split_and_preprocess
+import torch
 
 # Load and preprocess data
-claims_data = pd.read_csv('insurance_claims.csv')
-X = claims_data[['age', 'income', 'vehicle_age', 'region', 'policy_type']]
-y = claims_data['claim_amount']
-
-# Sophisticated data preprocessing
-x_train, x_val, x_test, y_train, y_val, y_test, \
-x_train_raw, x_val_raw, x_test_raw, \
-num_features, cat_features, all_categories, ct = split_and_preprocess(
-    X, y,
-    numerical_features=['age', 'income', 'vehicle_age'],
-    categorical_features=['region', 'policy_type'],
-    test_size=0.2,
-    val_size=0.1,
-    num_standard=True,
-    seed=42
+x_train, x_val, x_test, y_train, y_val, y_test, *_ = split_and_preprocess(
+    X, y, test_size=0.2, val_size=0.1, seed=42
 )
 
-# Convert to tensors
-X_train = torch.tensor(x_train.values, dtype=torch.float32)
-Y_train = torch.tensor(y_train.values, dtype=torch.float32) 
-X_val = torch.tensor(x_val.values, dtype=torch.float32)
-Y_val = torch.tensor(y_val.values, dtype=torch.float32)
-X_test = torch.tensor(x_test.values, dtype=torch.float32)
-Y_test = torch.tensor(y_test.values, dtype=torch.float32)
-
-# Step 1: Train baseline GLM
-print("Training baseline GLM...")
-baseline = GLM('gamma')  # Gamma distribution for insurance claims
-baseline.fit(X_train, Y_train)
-
-baseline_pred = baseline.predict(X_test)
-baseline_rmse = rmse(Y_test, baseline_pred.mean)
-print(f"Baseline RMSE: ${baseline_rmse:.2f}")
-
-# Step 2: Design sophisticated cutpoints
-print("Designing cutpoint strategy...")
+# Train baseline and create DRN
+baseline = GLM('gamma').fit(x_train, y_train)
 cutpoints = drn_cutpoints(
-    c_0=Y_train.quantile(0.005).item(),  # 0.5th percentile (handle outliers)
-    c_K=Y_train.quantile(0.995).item(),  # 99.5th percentile  
-    proportion=0.06,                     # 6% ratio for large dataset
-    y=y_train,
-    min_obs=30                           # Ensure statistical significance
+    c_0=y_train.quantile(0.01), c_K=y_train.quantile(0.99),
+    proportion=0.08, y=y_train, min_obs=20
 )
 
-print(f"Cutpoints: {len(cutpoints)} intervals")
-print(f"Range: ${cutpoints[0]:.0f} - ${cutpoints[-1]:.0f}")
+drn_model = DRN(baseline, cutpoints, hidden_size=128, num_hidden_layers=2)
 
-# Step 3: Configure DRN architecture
-print("Configuring DRN architecture...")
-torch.manual_seed(42)  # Reproducibility
-
-drn_model = DRN(
-    baseline=baseline,
-    cutpoints=cutpoints,
-    
-    # Architecture decisions
-    hidden_size=256,           # Larger network for complex data
-    num_hidden_layers=3,       # Deeper for more capacity
-    dropout_rate=0.15,         # Moderate regularization
-    
-    # Training configuration  
-    baseline_start=True,       # Initialize from baseline (recommended)
-    learning_rate=0.0005       # Conservative learning rate
+# Train with regularized loss
+train_data = torch.utils.data.TensorDataset(
+    torch.tensor(x_train.values, dtype=torch.float32),
+    torch.tensor(y_train.values, dtype=torch.float32)
+)
+val_data = torch.utils.data.TensorDataset(
+    torch.tensor(x_val.values, dtype=torch.float32),
+    torch.tensor(y_val.values, dtype=torch.float32)
 )
 
-# Step 4: Define sophisticated loss function
-def sophisticated_drn_loss(pred_dist, y_true):
-    """Custom loss with adaptive regularization."""
-    
-    # Base loss with carefully tuned regularization
-    base_loss = drn_loss(
-        pred_dist, y_true,
-        kl_alpha=2e-4,          # Moderate KL penalty
-        dv_alpha=8e-4,          # Smoothness penalty
-        mean_alpha=1e-5,        # Light mean constraint
-        kl_direction='forwards'
-    )
-    
-    # Optional: Add custom terms
-    # Penalize extreme predictions
-    mean_pred = pred_dist.mean
-    extreme_penalty = torch.mean(torch.relu(mean_pred - Y_train.max() * 2))
-    
-    return base_loss + 1e-3 * extreme_penalty
-
-# Step 5: Advanced training with monitoring  
-print("Training DRN with advanced configuration...")
-
-train_dataset = torch.utils.data.TensorDataset(X_train, Y_train)
-val_dataset = torch.utils.data.TensorDataset(X_val, Y_val)
-
-# Train with careful monitoring
-training_history = train(
-    drn_model,
-    sophisticated_drn_loss,
-    train_dataset,
-    val_dataset,
-    
-    # Training parameters
-    lr=0.0005,
-    batch_size=128,           # Balanced batch size
-    epochs=150,               # Sufficient training
-    patience=25,              # Patient early stopping
-    
-    # Monitoring
-    log_interval=5,
-    verbose=True
-)
-
-print("DRN training completed!")
-
-# Step 6: Comprehensive evaluation
-print("\n" + "="*50)
-print("COMPREHENSIVE MODEL EVALUATION")
-print("="*50)
-
-# Generate predictions
-drn_pred = drn_model.predict(X_test)
-
-# Point prediction metrics
-drn_rmse = rmse(Y_test, drn_pred.mean)
-improvement = (baseline_rmse - drn_rmse) / baseline_rmse * 100
-
-print(f"\n📊 Point Prediction Performance:")
-print(f"Baseline RMSE:     ${baseline_rmse:.2f}")
-print(f"DRN RMSE:         ${drn_rmse:.2f}")  
-print(f"Improvement:       {improvement:.1f}%")
-
-# Distributional metrics
-grid = torch.linspace(Y_test.min() - 100, Y_test.max() + 100, 2000)
-
-baseline_cdf = baseline_pred.cdf(grid.unsqueeze(-1))
-drn_cdf = drn_pred.cdf(grid.unsqueeze(-1))
-
-baseline_crps = crps(Y_test, grid, baseline_cdf).mean()
-drn_crps = crps(Y_test, grid, drn_cdf).mean()
-crps_improvement = (baseline_crps - drn_crps) / baseline_crps * 100
-
-print(f"\n📈 Distributional Performance:")
-print(f"Baseline CRPS:     ${baseline_crps:.2f}")
-print(f"DRN CRPS:         ${drn_crps:.2f}")
-print(f"CRPS Improvement:  {crps_improvement:.1f}%")
-
-# Risk measure evaluation  
-print(f"\n🎯 Risk Measure Performance:")
-risk_percentiles = [90, 95, 99]
-
-for percentile in risk_percentiles:
-    baseline_ql = quantile_losses(
-        percentile/100, baseline, "Baseline", X_test, Y_test,
-        l=Y_test.min()-100, u=Y_test.max()+100
-    )
-    drn_ql = quantile_losses(
-        percentile/100, drn_model, "DRN", X_test, Y_test,
-        l=Y_test.min()-100, u=Y_test.max()+100
-    )
-    ql_improvement = (baseline_ql - drn_ql) / baseline_ql * 100
-    
-    print(f"{percentile}th percentile loss: "
-          f"Baseline={baseline_ql:.4f}, DRN={drn_ql:.4f} "
-          f"({ql_improvement:+.1f}%)")
-
-print("\n✅ DRN training and evaluation complete!")
+loss_fn = lambda pred, y: drn_loss(pred, y, kl_alpha=1e-4, dv_alpha=1e-3)
+train(drn_model, loss_fn, train_data, val_data, epochs=50)
 ```
 
 ---
 
 ## Advanced Features
 
-### 🔧 Custom Loss Functions
+### Custom Loss Functions
 
 ```python
 def custom_drn_loss(pred_dist, y_true):
@@ -484,7 +283,7 @@ def custom_drn_loss(pred_dist, y_true):
     return base_loss + negative_penalty
 ```
 
-### 🔧 Lazy Initialization
+### Lazy Initialization
 
 ```python
 # DRN can automatically determine cutpoints during training
@@ -501,7 +300,7 @@ drn_model.fit(X_train, y_train)
 print(f"Auto-generated {len(drn_model.cutpoints)} cutpoints")
 ```
 
-### 🔧 Multi-Stage Training
+### Multi-Stage Training
 
 ```python
 # Stage 1: High regularization for stable initialization
@@ -524,14 +323,14 @@ train(drn_model, stage3_loss, train_dataset, val_dataset, epochs=20)
 
 ## Hyperparameter Tuning Guide
 
-### 🎯 Quick Tuning Strategy
+### Tuning Strategy
 
 1. **Start Conservative**: `kl_alpha=1e-4, dv_alpha=1e-3, mean_alpha=1e-5`
 2. **Check Baseline Quality**: If baseline is poor, decrease `kl_alpha`
 3. **Monitor Smoothness**: If densities are jagged, increase `dv_alpha`
 4. **Adjust Complexity**: More cutpoints = more flexibility but harder training
 
-### 🎯 Systematic Grid Search
+### Systematic Grid Search
 
 ```python
 def tune_drn_hyperparameters(baseline, X_train, Y_train, X_val, Y_val):
