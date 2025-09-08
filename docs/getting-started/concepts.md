@@ -42,7 +42,7 @@ graph LR
     C --> E[Refinement Factors]
     D --> F[DRN Distribution]
     E --> F
-    F --> G[Predictions: μ, σ, quantiles, etc.]
+    F --> G[Predictions]
 ```
 
 #### Stage 1: Baseline Model

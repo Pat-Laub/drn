@@ -29,29 +29,23 @@ The result is a model that maintains the interpretability of the baseline while 
 ## Architecture Overview
 
 ```mermaid
-flowchart TB
+graph TB
     A[Input Features X] --> B[Baseline Model]
     A --> C[Neural Network]
     
-    B --> D[Baseline Distribution P₀(y|x)]
-    C --> E[Log Adjustments δ(x)]
+    B --> D[Baseline Distribution]
+    C --> E[Log Adjustments]
     
     D --> F[Discretization via Cutpoints]
     E --> F
     
-    F --> G[Refined Distribution P(y|x)]
+    F --> G[Refined Distribution]
     
     G --> H[Final Predictions]
     
-    subgraph "Regularization"
-        I[KL Divergence: KL(P₀||P)]
-        J[Roughness: Smoothness penalty] 
-        K[Mean: Deviation from baseline mean]
-    end
-    
-    F --> I
-    F --> J
-    F --> K
+    I[KL Divergence] --> F
+    J[Roughness Penalty] --> F
+    K[Mean Penalty] --> F
 ```
 
 ---

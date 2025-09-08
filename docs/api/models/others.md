@@ -85,11 +85,11 @@ MDN (Mixture Density Network) is ideal for:
 ### Architecture
 
 ```mermaid
-flowchart LR
+graph LR
     A[Input Features] --> B[Neural Network]
-    B --> C[Mixing Weights π]
-    B --> D[Component Means μ]
-    B --> E[Component Stds σ]
+    B --> C[Mixing Weights]
+    B --> D[Component Means]
+    B --> E[Component Stds]
     
     C --> F[Mixture Distribution]
     D --> F
