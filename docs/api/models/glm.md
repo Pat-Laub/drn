@@ -296,7 +296,7 @@ baseline.fit(X_train, y_train)
 cutpoints = drn_cutpoints(
     c_0=y_train.min() * 0.9,
     c_K=y_train.max() * 1.1, 
-    p=0.1,
+    proportion=0.1,
     y=y_train,
     min_obs=20
 )

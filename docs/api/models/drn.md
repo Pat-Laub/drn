@@ -93,11 +93,11 @@ baseline.fit(X_train, y_train)
 
 # 2. Define refinement region  
 cutpoints = drn_cutpoints(
-    c_0=y_train.min() * 1.1,
-    c_K=y_train.max() * 1.1,
-    p=0.1,        # 10% cutpoints-to-observation ratio
+    c_0=y_train.min() * 0.9,  # Lower bound should be below minimum
+    c_K=y_train.max() * 1.1,  # Upper bound should be above maximum  
+    proportion=0.1,           # 10% cutpoints-to-observation ratio
     y=y_train,
-    min_obs=10    # Minimum observations per interval
+    min_obs=10               # Minimum observations per interval
 )
 
 # 3. Initialize DRN
@@ -157,7 +157,7 @@ import numpy as np
 cutpoints = drn_cutpoints(
     c_0=y_train.quantile(0.01),  # 1st percentile lower bound
     c_K=y_train.quantile(0.99),  # 99th percentile upper bound  
-    p=0.08,                      # 8% cutpoints-to-observation ratio
+    proportion=0.08,             # 8% cutpoints-to-observation ratio
     y=y_train,
     min_obs=15
 )
@@ -166,7 +166,7 @@ cutpoints = drn_cutpoints(
 cutpoints = drn_cutpoints(
     c_0=0,              # Fixed lower bound
     c_K=1000,           # Fixed upper bound
-    p=0.1,
+    proportion=0.1,
     y=y_train,
     min_obs=20
 )
@@ -176,7 +176,7 @@ margin = (y_train.max() - y_train.min()) * 0.1
 cutpoints = drn_cutpoints(
     c_0=y_train.min() - margin,
     c_K=y_train.max() + margin,
-    p=0.05,
+    proportion=0.05,
     y=y_train,
     min_obs=25
 )
@@ -185,14 +185,36 @@ print(f"Generated {len(cutpoints)} cutpoints")
 print(f"Refinement range: [{cutpoints[0]:.2f}, {cutpoints[-1]:.2f}]")
 ```
 
-### Cutpoint Guidelines
+### Handling Different Data Ranges
 
-| Dataset Size | Recommended `p` | Recommended `min_obs` | Rationale |
-|-------------|-----------------|----------------------|-----------|
-| < 1,000 | 0.15-0.20 | 0-5 | More flexibility, fewer constraints |
-| 1,000-10,000 | 0.08-0.12 | 5-15 | Balanced approach |
-| 10,000-100,000 | 0.03-0.08 | 15-50 | More stability, avoid overfitting |
-| > 100,000 | 0.01-0.03 | 50-100 | Conservative, focus on main effects |
+**⚠️ Critical**: The cutpoint bounds `c_0` and `c_K` must appropriately cover your data range:
+
+**For Positive Data (insurance claims, prices, etc.)**:
+```python
+# For data that can only be positive
+cutpoints = drn_cutpoints(
+    c_0=max(0, y_train.min() * 0.9),  # Ensure c_0 ≥ 0
+    c_K=y_train.max() * 1.1,
+    proportion=0.1,
+    y=y_train,
+    min_obs=10
+)
+```
+
+**For Data Including Negative Values (profits/losses, temperature, etc.)**:
+```python
+# For data that can be negative  
+margin = (y_train.max() - y_train.min()) * 0.1
+cutpoints = drn_cutpoints(
+    c_0=y_train.min() - margin,  # Allow for values below observed minimum
+    c_K=y_train.max() + margin,  # Allow for values above observed maximum
+    proportion=0.1,
+    y=y_train,
+    min_obs=10
+)
+```
+
+**Why this matters**: DRN can only refine the predicted distributions within the cutpoint range `[c_0, c_K]`. If your data falls outside this range, predictions will revert to the baseline model.
 
 ---
 
@@ -316,7 +338,7 @@ print("Designing cutpoint strategy...")
 cutpoints = drn_cutpoints(
     c_0=Y_train.quantile(0.005).item(),  # 0.5th percentile (handle outliers)
     c_K=Y_train.quantile(0.995).item(),  # 99.5th percentile  
-    p=0.06,                              # 6% ratio for large dataset
+    proportion=0.06,                     # 6% ratio for large dataset
     y=y_train,
     min_obs=30                           # Ensure statistical significance
 )
