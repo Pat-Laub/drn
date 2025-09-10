@@ -121,6 +121,10 @@ def rmse(y, y_hat):
     :return: The RMSE as a PyTorch tensor.
     """
     # Convert y to a PyTorch tensor if it is not already one
-    y = torch.Tensor(y.values) if not isinstance(y, torch.Tensor) else y
+    if not isinstance(y, torch.Tensor):
+        if hasattr(y, 'values'):  # pandas Series/DataFrame
+            y = torch.Tensor(y.values)
+        else:  # numpy array or other array-like
+            y = torch.Tensor(y)
     # Calculate the RMSE
     return torch.sqrt(torch.mean((y.squeeze() - y_hat.squeeze()) ** 2))

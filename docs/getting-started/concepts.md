@@ -242,10 +242,9 @@ Now that you understand the concepts, you can:
 
 1. **Try the [Quick Start Guide](quickstart.md)** - Hands-on experience
 2. **Explore [Advanced Usage](advanced-usage.md)** - Step-by-step examples
-4. **Check [API Reference](/api)** - Technical details
 
 ## Further Reading
 
-- [DRN Paper](https://arxiv.org/abs/2406.00998) - Theoretical foundation
-- [CANN Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3320525) - Actuarial neural networks
-- [MDN Paper](https://publications.aston.ac.uk/id/eprint/373/1/NCRG_94_004.pdf) - Mixture density networks
+- [DRN Paper](https://arxiv.org/abs/2406.00998)
+- [CANN Paper](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=3320525)
+- [DeepGLM Paper](https://www.tandfonline.com/doi/full/10.1080/10618600.2019.1637747)

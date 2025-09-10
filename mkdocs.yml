@@ -84,6 +84,7 @@ nav:
       - BaseModel: api/models/base.md
       - Constant: api/models/constant.md
       - GLM: api/models/glm.md
+      - DeepGLM: api/models/deepglm.md
       - CANN: api/models/cann.md
       - MDN: api/models/mdn.md
       - DDR: api/models/ddr.md

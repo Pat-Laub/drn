@@ -7,6 +7,7 @@ Core distributional regression models in the DRN package. All models inherit fro
 ```mermaid
 classDiagram
     BaseModel <|-- GLM
+    BaseModel <|-- DeepGLM
     BaseModel <|-- DRN
     BaseModel <|-- CANN
     BaseModel <|-- MDN
@@ -38,6 +39,7 @@ classDiagram
 |-------|---------|-------------|----------|
 | **[BaseModel](base.md)** | Abstract base class | Common interface, PyTorch Lightning | All models inherit from this |
 | **[GLM](glm.md)** | Generalized Linear Models | Interpretable, statistical foundation | Baseline models, simple relationships |
+| **[DeepGLM](deepglm.md)** | Deep Generalized Linear Model | Neural feature learning + GLM head | Nonlinear relationships, distributional outputs |
 | **[DRN](drn.md)** | Distributional Refinement Network | Neural + interpretable baseline | Complex distributions with interpretability |
 | **[CANN](cann.md)** | Combined Actuarial Neural Network | Actuarial focus, separate parameter networks | Insurance and actuarial applications |
 | **[MDN](mdn.md)** | Mixture Density Network | Multi-modal distributions | Complex, multi-peaked data |
@@ -99,19 +101,8 @@ drn_model.fit(X_train, y_train)
 | Model | Training Speed | Inference Speed | Memory Usage | Interpretability | Flexibility |
 |-------|---------------|----------------|--------------|------------------|-------------|
 | GLM | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ |
+| DeepGLM | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
 | DRN | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
 | CANN | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
 | MDN | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐⭐ |
 | DDR | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐ | ⭐⭐⭐⭐⭐ |
-
-### Implementation Status
-
-| Model | Status | Documentation | Examples |
-|-------|--------|---------------|----------|
-| BaseModel | ✅ Complete | ✅ Full | ✅ Available |
-| GLM | ✅ Complete | ✅ Full | ✅ Available |
-| DRN | ✅ Complete | ✅ Full | ✅ Available |
-| CANN | ✅ Complete | 🔄 Basic | 🔄 Coming |
-| MDN | ✅ Complete | 🔄 Basic | 🔄 Coming |
-| DDR | ✅ Complete | 🔄 Basic | 🔄 Coming |
-| Constant | ✅ Complete | 🔄 Basic | 🔄 Coming |

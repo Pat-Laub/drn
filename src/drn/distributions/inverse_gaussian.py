@@ -5,6 +5,9 @@ class InverseGaussian(torch.distributions.Distribution):
     def __init__(self, mean: torch.Tensor, dispersion: torch.Tensor):
         self.mu = mean
         self.dispersion = dispersion
+        # Properly initialize the parent class
+        batch_shape = mean.shape
+        super(InverseGaussian, self).__init__(batch_shape)
 
     def log_prob(self, y: torch.Tensor) -> torch.Tensor:
         term1 = -0.5 * torch.log(2 * torch.pi * self.dispersion * y**3)

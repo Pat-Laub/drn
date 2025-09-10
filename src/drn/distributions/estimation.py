@@ -50,7 +50,7 @@ def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p:
     Estimate the dispersion parameter for different distributions.
 
     Parameters:
-    distribution (str): The type of distribution ("gamma", "gaussian", "inversegaussian").
+    distribution (str): The type of distribution ("gamma", "gaussian", "inversegaussian", "lognormal").
     mu (torch.Tensor): The predicted mean values.
     y (torch.Tensor): The observed target values.
     p (int): The number of model parameters.
@@ -62,6 +62,8 @@ def estimate_dispersion(distribution: str, mu: torch.Tensor, y: torch.Tensor, p:
         return gamma_estimate_dispersion(mu, y, p)
     elif distribution == "gaussian":
         return gaussian_estimate_sigma(mu, y)
+    elif distribution == "lognormal":
+        return gaussian_estimate_sigma(mu, y)  # lognormal uses same estimation as gaussian
     elif distribution == "inversegaussian":
         return inversegaussian_estimate_dispersion(mu, y, p)
     else:

@@ -1,3 +1,8 @@
+---
+hide:
+  - navigation
+---
+
 # Distributional Refinement Network Python Package
 
 [![PyPI version](https://badge.fury.io/py/drn.svg)](https://badge.fury.io/py/drn)
