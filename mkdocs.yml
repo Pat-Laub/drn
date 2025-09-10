@@ -1,4 +1,4 @@
-site_name: DRN - Distributional Refinement Networks
+site_name: drn Python Package
 site_description: A PyTorch-based library for Distributional Refinement Networks and distributional regression modeling
 site_author: Eric Dong, Patrick Laub
 site_url: https://drn-docs.readthedocs.io
@@ -26,7 +26,6 @@ theme:
         name: Switch to light mode
   features:
     - navigation.tabs
-    - navigation.sections
     - navigation.expand
     - navigation.top
     - search.highlight
@@ -76,10 +75,8 @@ nav:
   - Home: index.md
   - Getting Started: 
     - Quick Start: getting-started/quickstart.md
-    # - Installation: getting-started/installation.md
     - Basic Concepts: getting-started/concepts.md
     - Advanced Usage: getting-started/advanced-usage.md
-  # - User Guide: user-guide/index.md
   - API Reference:
     - Overview: api/index.md
     - Models:
@@ -93,8 +90,6 @@ nav:
     - Metrics: api/metrics.md
     - Interpretability: api/interpretability.md
     - Utilities: api/utils.md
-  # - Examples: examples/index.md
-  # - Development: development/index.md
 
 extra:
   social:
