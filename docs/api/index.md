@@ -32,7 +32,7 @@ The DRN package is organized into several key modules:
 | [`crps()`](metrics.md#drn.metrics.crps) | Continuous Ranked Probability Score | `drn.metrics` |
 | [`split_and_preprocess()`](utils.md#drn.utils.split_and_preprocess) | Data preprocessing | `drn.utils` |
 
-### Import Patterns
+<!-- ### Import Patterns
 
 ```python
 # Core functionality
@@ -47,50 +47,9 @@ from drn.interpretability import DRNExplainer
 # Advanced usage
 import drn.models
 import drn.distributions
-```
+``` -->
 
-## Documentation Conventions
-
-This API documentation follows standard conventions:
-
-### Function Signatures
-Parameters are documented with types and default values:
-```python
-def example_function(
-    x: torch.Tensor,           # Required parameter
-    y: Optional[str] = None,   # Optional with default
-    **kwargs                   # Additional keyword arguments
-) -> torch.Tensor:            # Return type
-```
-
-### Parameter Documentation
-- **Required parameters** are listed first
-- **Optional parameters** show default values
-- **Type hints** indicate expected data types
-- **Descriptions** explain parameter purpose and constraints
-
-### Examples
-Code examples show typical usage patterns:
-```python
-# Example usage
-model = GLM('gamma')
-model.fit(X_train, y_train)
-predictions = model.predict(X_test)
-```
-
-### Return Values
-Return types and structures are clearly documented:
-```python
-Returns:
-    torch.Tensor: Predicted values of shape (n_samples,)
-    
-    OR
-    
-    dict: Dictionary containing:
-        - 'mean': torch.Tensor of shape (n_samples,)
-        - 'variance': torch.Tensor of shape (n_samples,)
-```
-
+<!-- 
 ## Module Structure
 
 ```
@@ -114,14 +73,6 @@ drn/
 ├── kernel_shap_explainer.py  # SHAP integration
 └── utils.py               # Utility functions
 ```
-
-## Version Compatibility
-
-This documentation is for DRN version 0.0.1. The API is subject to change in future versions, but we follow semantic versioning principles:
-
-- **Major version** (X.0.0): Breaking API changes
-- **Minor version** (0.X.0): New features, backward compatible
-- **Patch version** (0.0.X): Bug fixes, backward compatible
 
 ## Getting Help
 
@@ -184,4 +135,4 @@ def example_function(x: torch.Tensor, threshold: float = 0.5) -> torch.Tensor:
     """
     # Implementation here
     pass
-```
+``` -->

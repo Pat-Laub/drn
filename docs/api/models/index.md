@@ -39,10 +39,10 @@ classDiagram
 | **[BaseModel](base.md)** | Abstract base class | Common interface, PyTorch Lightning | All models inherit from this |
 | **[GLM](glm.md)** | Generalized Linear Models | Interpretable, statistical foundation | Baseline models, simple relationships |
 | **[DRN](drn.md)** | Distributional Refinement Network | Neural + interpretable baseline | Complex distributions with interpretability |
-| **[CANN](others.md#cann)** | Combined Actuarial Neural Network | Actuarial focus, separate parameter networks | Insurance and actuarial applications |
-| **[MDN](others.md#mdn)** | Mixture Density Network | Multi-modal distributions | Complex, multi-peaked data |
-| **[DDR](others.md#ddr)** | Deep Distribution Regression | Pure neural approach | Maximum flexibility, no baseline constraint |
-| **[Constant](others.md#constant)** | Constant prediction | Simple baseline | Benchmarking, ablation studies |
+| **[CANN](cann.md)** | Combined Actuarial Neural Network | Actuarial focus, separate parameter networks | Insurance and actuarial applications |
+| **[MDN](mdn.md)** | Mixture Density Network | Multi-modal distributions | Complex, multi-peaked data |
+| **[DDR](ddr.md)** | Deep Distribution Regression | Pure neural approach | Maximum flexibility, no baseline constraint |
+| **[Constant](constant.md)** | Constant prediction | Simple baseline | Benchmarking, ablation studies |
 
 ## Common Usage Patterns
 
@@ -115,14 +115,3 @@ drn_model.fit(X_train, y_train)
 | MDN | ✅ Complete | 🔄 Basic | 🔄 Coming |
 | DDR | ✅ Complete | 🔄 Basic | 🔄 Coming |
 | Constant | ✅ Complete | 🔄 Basic | 🔄 Coming |
-
-## Next Steps
-
-- **[BaseModel](base.md)** - Understand the common interface
-- **[GLM](glm.md)** - Master the baseline models  
-- **[DRN](drn.md)** - Learn the main DRN architecture
-- **[Other Models](others.md)** - Explore advanced architectures
-
-For practical usage examples, see:
-- **[Quick Start](../../getting-started/quickstart.md)** - Pandas/numpy workflow
-- **[Advanced Usage](../../getting-started/advanced-usage.md)** - Custom tensor operations

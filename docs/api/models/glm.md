@@ -27,7 +27,7 @@ The `GLM` class provides PyTorch implementations of Generalized Linear Models wi
 
 ## Supported Distributions
 
-### 🎯 Gaussian Distribution
+### Gaussian Distribution
 ```python
 glm = GLM('gaussian')
 ```
@@ -36,7 +36,7 @@ glm = GLM('gaussian')
 - **Parameters**: Mean (μ), standard deviation (σ)
 - **Best For**: Symmetric, unbounded data (temperatures, stock returns)
 
-### 🎯 Gamma Distribution  
+### Gamma Distribution  
 ```python
 glm = GLM('gamma')
 ```
@@ -45,7 +45,7 @@ glm = GLM('gamma')
 - **Parameters**: Shape (α), scale (β)
 - **Best For**: Insurance claims, waiting times, sales amounts
 
-### 🎯 Inverse Gaussian Distribution
+### Inverse Gaussian Distribution
 ```python
 glm = GLM('inversegaussian')
 ```
@@ -54,7 +54,7 @@ glm = GLM('inversegaussian')
 - **Parameters**: Mean (μ), dispersion (λ)
 - **Best For**: First passage times, service durations
 
-### 🎯 Log-Normal Distribution
+### Log-Normal Distribution
 ```python
 glm = GLM('lognormal')
 ```
@@ -76,7 +76,7 @@ import pandas as pd
 X = pd.DataFrame({'age': [25, 35, 45], 'income': [30000, 50000, 70000]})
 y = pd.Series([1200, 1800, 2400])
 
-# Fit GLM using maximum likelihood (recommended)
+# Fit GLM using statsmodels approach
 glm = GLM('gamma')
 glm.fit(X, y)
 
@@ -149,43 +149,6 @@ for i, p in enumerate(percentiles):
     print(f"{p}th percentile: ${avg_risk:.2f}")
 ```
 
-### Model Comparison Across Distributions
-
-```python
-from drn.metrics import rmse, crps
-
-# Compare different distribution families
-distributions = ['gaussian', 'gamma', 'lognormal']
-results = {}
-
-for dist in distributions:
-    # Train model
-    glm = GLM(dist)
-    glm.fit(X_train, y_train)
-    
-    # Evaluate
-    pred = glm.predict(X_test)
-    rmse_val = rmse(y_test, pred.mean)
-    
-    # CRPS evaluation
-    grid = np.linspace(y_test.min() - y_test.std(), 
-                      y_test.max() + y_test.std(), 1000)
-    crps_val = crps(y_test, grid, pred.cdf(grid)).mean()
-    
-    results[dist] = {
-        'rmse': rmse_val.item(),
-        'crps': crps_val.item(),
-        'nll': -pred.log_prob(y_test).mean().item()
-    }
-
-# Print comparison
-print("Distribution Comparison:")
-print(f"{'Distribution':<15} {'RMSE':<10} {'CRPS':<10} {'NLL':<10}")
-print("-" * 50)
-for dist, metrics in results.items():
-    print(f"{dist:<15} {metrics['rmse']:<10.3f} {metrics['crps']:<10.3f} {metrics['nll']:<10.3f}")
-```
-
 ---
 
 ## Parameter Access and Interpretation
@@ -211,10 +174,14 @@ for i, name in enumerate(feature_names):
     print(f"{name}: {coef:.4f} (multiplicative effect: {effect:.4f})")
 ```
 
-### Statistical Significance (Statsmodels Integration)
+### Statsmodels equivalence
+
+Under the hood, `GLM` uses `statsmodels` for statistical fitting.
+You can make the equivalent GLM directly to access detailed statistical outputs.
 
 ```python
 import statsmodels.api as sm
+from statsmodels.genmod.families import Gamma
 import numpy as np
 
 # For detailed statistical analysis, access underlying statsmodels results
@@ -222,7 +189,6 @@ X_np = X_train.values
 y_np = y_train.values
 
 # Fit using statsmodels directly for statistical inference
-from statsmodels.genmod.families import Gamma
 X_sm = sm.add_constant(X_np)
 sm_model = sm.GLM(y_np, X_sm, family=Gamma(link=sm.families.links.Log()))
 sm_results = sm_model.fit()
@@ -236,189 +202,15 @@ print(f"BIC: {sm_results.bic:.2f}")
 
 ## Advanced Features
 
-### Custom Parameter Initialization
-
-```python
-# Manual parameter setting
-glm = GLM('gamma')
-
-# Set specific coefficients
-glm.linear = torch.nn.Linear(X_train.shape[1], 1)
-glm.linear.weight.data = torch.tensor([[0.5, -0.3, 0.8]])
-glm.linear.bias.data = torch.tensor([2.1])
-glm.dispersion.data = torch.tensor([1.5])
-
-# Fine-tune with gradient descent
-glm.fit(X_train, y_train, grad_descent=True, epochs=100)
-```
-
-### Model Cloning and Ensembles
-
-```python
-# Clone for ensemble methods
-base_glm = GLM('gamma')
-base_glm.fit(X_train, y_train)
-
-# Create ensemble of slightly different models
-ensemble = []
-for seed in [42, 123, 456]:
-    torch.manual_seed(seed)
-    cloned_glm = base_glm.clone()
-    
-    # Add slight randomization
-    noise = torch.randn_like(cloned_glm.linear.weight) * 0.01
-    cloned_glm.linear.weight.data += noise
-    
-    ensemble.append(cloned_glm)
-
-# Ensemble predictions
-ensemble_preds = []
-for model in ensemble:
-    pred = model.predict(X_test)
-    ensemble_preds.append(pred.mean)
-
-# Average predictions
-avg_pred = torch.stack(ensemble_preds).mean(dim=0)
-```
-
 ### Integration with DRN
 
 ```python
-from drn import DRN
-from drn.models import drn_cutpoints, drn_loss
-from drn import train
+from drn import GLM, DRN
 
 # Train baseline GLM
 baseline = GLM('gamma')
 baseline.fit(X_train, y_train)
 
-# Create cutpoints for DRN refinement
-cutpoints = drn_cutpoints(
-    c_0=y_train.min() * 0.9,
-    c_K=y_train.max() * 1.1, 
-    proportion=0.1,
-    y=y_train,
-    min_obs=20
-)
-
 # Initialize DRN with GLM baseline
-drn_model = DRN(
-    baseline=baseline,
-    cutpoints=cutpoints,
-    hidden_size=128,
-    num_hidden_layers=2
-)
-
-# Train DRN refinement
-train_dataset = torch.utils.data.TensorDataset(
-    torch.tensor(X_train.values, dtype=torch.float32),
-    torch.tensor(y_train.values, dtype=torch.float32)
-)
-val_dataset = torch.utils.data.TensorDataset(
-    torch.tensor(X_val.values, dtype=torch.float32),
-    torch.tensor(y_val.values, dtype=torch.float32)
-)
-
-train(
-    drn_model,
-    lambda pred, y: drn_loss(pred, y, kl_alpha=1e-4, dv_alpha=1e-3),
-    train_dataset,
-    val_dataset,
-    epochs=100
-)
+drn_model = DRN(baseline=baseline).fit(X_train, y_train)
 ```
-
----
-
-## Troubleshooting
-
-### Common Issues and Solutions
-
-#### Issue: "Singular Matrix" Error
-```
-LinAlgError: singular matrix
-```
-**Cause**: Perfect multicollinearity in features  
-**Solution**: Remove redundant features or add regularization
-```python
-# Check for multicollinearity
-correlation_matrix = X_train.corr()
-print("High correlations (> 0.9):")
-high_corr = correlation_matrix[abs(correlation_matrix) > 0.9]
-print(high_corr)
-
-# Remove highly correlated features
-X_train_reduced = X_train.drop(['redundant_column'], axis=1)
-```
-
-#### Issue: Poor Convergence with Gradient Descent
-```
-RuntimeError: loss not decreasing
-```
-**Solutions**:
-```python
-# Lower learning rate
-glm = GLM('gamma', learning_rate=1e-4)
-
-# Use statsmodels instead (more robust)
-glm.fit(X_train, y_train, grad_descent=False)
-
-# Add regularization
-glm.fit(X_train, y_train, grad_descent=True, 
-        weight_decay=1e-5)  # L2 regularization
-```
-
-#### Issue: Negative Predictions for Positive Distributions
-**Cause**: Link function should ensure positivity  
-**Check**: Verify log-link is working correctly
-```python
-# For gamma/inverse Gaussian, predictions should be positive
-pred = glm.predict(X_test)
-assert torch.all(pred.mean > 0), "Negative predictions detected!"
-
-# Check link function implementation
-print(f"Using log link: {glm.distribution in ['gamma', 'inversegaussian']}")
-```
-
----
-
-## Performance Optimization
-
-### Large Dataset Handling
-
-```python
-# Use gradient descent for very large datasets
-glm = GLM('gamma')
-glm.fit(
-    X_large, y_large,
-    grad_descent=True,
-    batch_size=512,    # Larger batches
-    epochs=50,         # Fewer epochs
-    patience=10
-)
-```
-
-### Memory Optimization
-
-```python
-# Process data in chunks for memory efficiency
-chunk_size = 10000
-predictions = []
-
-for i in range(0, len(X_test), chunk_size):
-    chunk_X = X_test.iloc[i:i+chunk_size]
-    chunk_pred = glm.predict(chunk_X)
-    predictions.append(chunk_pred.mean)
-
-# Combine results
-all_predictions = torch.cat(predictions)
-```
-
----
-
-## See Also
-
-- **[BaseModel](base.md)** - Common model interface
-- **[DRN](drn.md)** - Using GLM as baseline for refinement
-- **[Training](../training.md)** - Advanced training techniques
-- **[Quick Start](../../getting-started/quickstart.md)** - Practical examples

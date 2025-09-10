@@ -1,4 +1,4 @@
-# DRN: Distributional Refinement Networks
+# Distributional Refinement Network Python Package
 
 [![PyPI version](https://badge.fury.io/py/drn.svg)](https://badge.fury.io/py/drn)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -69,11 +69,11 @@ This package accompanies the [DRN paper](https://arxiv.org/abs/2406.00998) on Di
 
 ## Documentation Structure
 
-The documentation covers installation and basic setup in [Getting Started](getting-started/installation.md), detailed usage patterns in the [User Guide](user-guide/index.md), complete technical specifications in the [API Reference](api/index.md), and practical applications in [Examples](examples/index.md).
+The documentation covers installation and basic setup in [Getting Started](getting-started/quickstart.md), complete technical specifications in the [API Reference](api/index.md).
 
 ## Contributing
 
-Contributions are welcome. Please see our [Development Guide](development/index.md) for details on getting started.
+Contributions are welcome.
 
 ## Citation
 

@@ -242,8 +242,7 @@ Now that you understand the concepts, you can:
 
 1. **Try the [Quick Start Guide](quickstart.md)** - Hands-on experience
 2. **Explore [Advanced Usage](advanced-usage.md)** - Step-by-step examples
-3. **Read [User Guide](../user-guide/index.md)** - Best practices
-4. **Check [API Reference](../api/models/base.md)** - Technical details
+4. **Check [API Reference](/api)** - Technical details
 
 ## Further Reading
 

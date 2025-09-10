@@ -82,9 +82,12 @@ nav:
     - Models:
       - Overview: api/models/index.md
       - BaseModel: api/models/base.md
+      - Constant: api/models/constant.md
       - GLM: api/models/glm.md
+      - CANN: api/models/cann.md
+      - MDN: api/models/mdn.md
+      - DDR: api/models/ddr.md
       - DRN: api/models/drn.md
-      - Other Models: api/models/others.md
     - Distributions: api/distributions.md
     - Training: api/training.md
     - Metrics: api/metrics.md
